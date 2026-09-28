@@ -162,9 +162,9 @@ errors annotated on the affected files.
 | `commit-message` | `Sync Quiver state [skip ci]` | message for that commit |
 
 Outputs: `exit-code`, `json` (path to the `--json` output), `committed`.
-GitHub drops a composite action's outputs when it fails, so to act on a
-specific exit code (e.g. 7 for a conflict), set `fail-on-error: "false"`, or
-read the `QUIVER_EXIT_CODE` environment variable in a later step.
+The exit code is also exported as `QUIVER_EXIT_CODE` for later steps. To act
+on a specific code (e.g. 7 for a conflict) without failing the job, set
+`fail-on-error: "false"` and branch on `exit-code`.
 
 [`examples/quiver-content.yml`](examples/quiver-content.yml) is a complete
 workflow for a content repo: pull requests run `content check` and a

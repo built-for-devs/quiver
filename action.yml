@@ -32,8 +32,8 @@ inputs:
   fail-on-error:
     description: >-
       Fail the step when quiver exits non-zero (the default). Set to "false"
-      to always succeed and branch on the exit-code output instead: GitHub
-      drops a composite action's outputs when it fails.
+      to report the result without failing the job, and branch on the
+      exit-code output instead.
     required: false
     default: "true"
   commit-state:
@@ -53,9 +53,8 @@ outputs:
   exit-code:
     description: >-
       quiver's exit code (0 ok, 2 usage, 3 auth, 4 not found, 5 validation,
-      6 unavailable, 7 conflict). Only set when the step succeeds; use
-      fail-on-error "false" to read it after a failure, or the
-      QUIVER_EXIT_CODE environment variable in later steps.
+      6 unavailable, 7 conflict). Also exported as QUIVER_EXIT_CODE for
+      later steps.
     value: ${{ steps.run.outputs.exit-code }}
   json:
     description: Path to a file with quiver's --json output.
