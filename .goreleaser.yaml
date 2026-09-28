@@ -43,19 +43,22 @@ changelog:
     exclude:
       - "^Merge "
 
-# This repo doubles as the Homebrew tap: the cask is committed to Casks/ on
-# main, using the release workflow's GITHUB_TOKEN.
+# The cask is committed to built-for-devs/homebrew-tap, shared by all Built
+# for Devs tools. GITHUB_TOKEN can't write to another repo, so this needs
+# HOMEBREW_TAP_GITHUB_TOKEN (Contents: read and write on homebrew-tap).
 homebrew_casks:
   - name: quiver
     repository:
       owner: built-for-devs
-      name: quiver
+      name: homebrew-tap
       branch: main
-      token: "{{ .Env.GITHUB_TOKEN }}"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Casks
     homepage: https://quivergtm.dev/
     description: Command-line client for Quiver
-    skip_upload: auto # not for prereleases
+    # Skipped for prereleases, and until the tap token is configured so a
+    # release without it still succeeds.
+    skip_upload: '{{ if or .Prerelease (not (index .Env "HOMEBREW_TAP_GITHUB_TOKEN")) }}true{{ end }}'
     commit_author:
       name: github-actions[bot]
       email: 41898282+github-actions[bot]@users.noreply.github.com

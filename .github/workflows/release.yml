@@ -22,8 +22,10 @@ jobs:
           version: "~> v2"
           args: release --clean
         env:
-          # Also commits the Homebrew cask to Casks/ on main.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Commits the cask to built-for-devs/homebrew-tap. Fine-grained
+          # token with Contents: read and write on that repo only.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
       # Keep the major tag (v0, v1, ...) pointing at the latest stable
       # release, so workflows can use built-for-devs/quiver@v0.
