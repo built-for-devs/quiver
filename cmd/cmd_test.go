@@ -242,7 +242,7 @@ func TestSpecArgMapping(t *testing.T) {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
 	got := f.calls[0]["arguments"].(map[string]any)
-	want := map[string]any{"mine": true, "due_today": true, "limit": float64(3)}
+	want := map[string]any{"mine": true, "dueToday": true, "limit": float64(3)}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("task ls args = %v, want %v (unset flags must not be sent)", got, want)
 	}

@@ -99,7 +99,7 @@ func newToolsCallCmd() *cobra.Command {
 		Use:   "call <tool>",
 		Short: "Call any tool with raw arguments",
 		Example: `  quiver tools call list_tasks -a mine=true -a limit=20
-  quiver tools call get_campaign --args '{"campaign_id":"q3-launch"}'`,
+  quiver tools call get_campaign --args '{"campaignId":"q3-launch"}'`,
 		Args: exactArgs(1, "<tool>"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			toolArgs := map[string]any{}

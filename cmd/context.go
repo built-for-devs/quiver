@@ -90,7 +90,7 @@ func newContextApplyCmd() *cobra.Command {
 			if err := confirm(cmd, yes, "apply context proposal "+args[0]); err != nil {
 				return err
 			}
-			return callTool(cmd, "apply_context_update", map[string]any{"proposal_id": args[0]})
+			return callTool(cmd, "apply_context_update", map[string]any{"proposalId": args[0]})
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "apply without prompting (required in scripts)")
