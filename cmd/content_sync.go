@@ -12,22 +12,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/built-for-devs/quiver/internal/apperr"
+	"github.com/built-for-devs/quiver/internal/client"
 	"github.com/built-for-devs/quiver/internal/content"
 	"github.com/built-for-devs/quiver/internal/output"
 )
-
-// Tool argument shapes for content sync. Keys are unverified against the live
-// schema; check with `quiver tools describe get_content` (and save_content,
-// update_content, list_content).
-func getContentArgs(slug string) map[string]any { return map[string]any{"slug": slug} }
-
-func updateContentArgs(slug string, fields map[string]any, changed []string) map[string]any {
-	args := map[string]any{"slug": slug}
-	for _, k := range changed {
-		args[k] = fields[k]
-	}
-	return args
-}
 
 func newContentPullCmd() *cobra.Command {
 	var outFile, dir string
@@ -69,12 +57,12 @@ conflicting edits. Do not edit it.`,
 				if len(slugs) != 1 {
 					return apperr.Usage("multiple slugs need --dir")
 				}
-				d, err := fetchContent(s, slugs[0])
+				d, err := fetchContent(s, map[string]any{"slug": slugs[0]})
 				if err != nil {
 					return err
 				}
 				if g.json {
-					return output.JSON(cmd.OutOrStdout(), docJSON(d))
+					return output.JSON(cmd.OutOrStdout(), d.JSON())
 				}
 				b, err := content.Marshal(d)
 				if err != nil {
@@ -97,7 +85,7 @@ conflicting edits. Do not edit it.`,
 					}
 					path = filepath.Join(dir, slug+".md")
 				}
-				d, err := fetchContent(s, slug)
+				d, err := fetchContent(s, map[string]any{"slug": slug})
 				if err != nil {
 					return err
 				}
@@ -207,29 +195,40 @@ func pushOne(s *session, path string, force, dryRun bool) pushResult {
 		r.Issues = issues
 		return fail(apperr.Validation("invalid frontmatter (run `quiver content check %s`)", path))
 	}
-	fields := local.Fields()
 
-	remote, err := fetchContent(s, local.Slug)
+	// Look up by the pulled ID when there is one, so a slug edit in the file
+	// can't silently target a different piece.
+	var id string
+	lookup := map[string]any{"slug": local.Slug}
+	if local.Quiver != nil && local.Quiver.ID != "" {
+		id = local.Quiver.ID
+		lookup = map[string]any{"content_id": id}
+	}
+	remote, err := fetchContent(s, lookup)
 	notFound := apperr.CodeOf(err) == apperr.CodeNotFound
 	if err != nil && !notFound {
 		return fail(err)
 	}
 
 	if notFound {
-		if local.Quiver != nil && local.Quiver.ID != "" && !force {
-			return fail(apperr.Conflict("slug %q not found on server, but this file was pulled from item %s: renamed or deleted? use --force to create a new draft", local.Slug, local.Quiver.ID))
+		if id != "" && !force {
+			return fail(apperr.Conflict("content %s, which this file was pulled from, no longer exists: deleted? use --force to create a new draft", id))
 		}
 		if dryRun {
 			r.Action = "would_create"
 			return r
 		}
-		if _, err := s.call("save_content", fields); err != nil {
+		res, err := s.call("save_content", content.CreateArgs(local))
+		if err != nil {
 			return fail(err)
 		}
 		r.Action = "created"
-		return refreshBase(s, path, local, r)
+		return adoptBase(s, path, local, res, r)
 	}
 
+	if remote.Slug != local.Slug {
+		return fail(apperr.Validation("slug changed from %q to %q: slugs can't be renamed from the CLI; rename it in Quiver and pull again", remote.Slug, local.Slug))
+	}
 	r.Changed = content.Diff(local, remote)
 	if len(r.Changed) == 0 {
 		r.Action = "unchanged"
@@ -251,20 +250,34 @@ func pushOne(s *session, path string, force, dryRun bool) pushResult {
 		r.Action = "would_update"
 		return r
 	}
-	if _, err := s.call("update_content", updateContentArgs(local.Slug, fields, r.Changed)); err != nil {
+	args := content.UpdateArgs(local, r.Changed)
+	if remote.Quiver != nil && remote.Quiver.ID != "" {
+		args["content_id"] = remote.Quiver.ID
+	} else {
+		args["slug"] = remote.Slug
+	}
+	res, err := s.call("update_content", args)
+	if err != nil {
 		return fail(err)
 	}
 	r.Action = "updated"
-	return refreshBase(s, path, local, r)
+	return adoptBase(s, path, local, res, r)
 }
 
-// refreshBase records the post-write server state in the file so the next
-// push compares against it.
-func refreshBase(s *session, path string, local *content.Doc, r pushResult) pushResult {
-	remote, err := fetchContent(s, local.Slug)
-	if err != nil {
-		r.Error = "pushed, but could not refresh quiver: block: " + err.Error()
-		return r
+// adoptBase records the post-write server state in the file so the next push
+// compares against it. save_content and update_content return the full
+// piece; fall back to fetching it if the response can't be decoded.
+func adoptBase(s *session, path string, local *content.Doc, res *client.ToolResult, r pushResult) pushResult {
+	var remote *content.Doc
+	if data, ok := res.Data(); ok {
+		remote, _ = content.FromServer(data)
+	}
+	if remote == nil || remote.Quiver == nil {
+		var err error
+		if remote, err = fetchContent(s, map[string]any{"slug": local.Slug}); err != nil {
+			r.Error = "pushed, but could not refresh quiver: block: " + err.Error()
+			return r
+		}
 	}
 	return fastForward(path, local, remote, r)
 }
@@ -379,9 +392,9 @@ recommended lengths.`,
 	return cmd
 }
 
-// fetchContent gets one item and decodes it as a Doc.
-func fetchContent(s *session, slug string) (*content.Doc, error) {
-	res, err := s.call("get_content", getContentArgs(slug))
+// fetchContent gets one piece by content_id or slug and decodes it.
+func fetchContent(s *session, lookup map[string]any) (*content.Doc, error) {
+	res, err := s.call("get_content", lookup)
 	if err != nil {
 		return nil, err
 	}
@@ -479,14 +492,6 @@ func writeDoc(path string, d *content.Doc) error {
 		return apperr.Wrap(apperr.CodeGeneral, err, "write file")
 	}
 	return nil
-}
-
-func docJSON(d *content.Doc) map[string]any {
-	m := d.Fields()
-	if d.Quiver != nil {
-		m["quiver"] = d.Quiver
-	}
-	return m
 }
 
 // firstFailure returns an error carrying the exit code of the first failed

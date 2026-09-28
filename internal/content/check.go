@@ -31,10 +31,7 @@ const (
 	maxOGDescription   = 200
 )
 
-var (
-	slugRe      = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-	twitterCard = map[string]bool{"summary": true, "summary_large_image": true, "app": true, "player": true}
-)
+var slugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Check validates the fields needed to publish with complete SEO and social
 // metadata. Errors block push; warnings only fail `content check --strict`.
@@ -86,9 +83,6 @@ func Check(d *Doc) []Issue {
 	if d.OG.ImageURL == nil {
 		add(SevWarning, "og.imageUrl", "missing; social cards will have no image")
 	}
-	if c := d.OG.TwitterCardType; c != nil && !twitterCard[*c] {
-		add(SevError, "og.twitterCardType", "must be one of summary, summary_large_image, app, player")
-	}
 	if d.Excerpt == nil {
 		add(SevWarning, "excerpt", "missing")
 	}
@@ -103,13 +97,6 @@ func HasErrors(issues []Issue) bool {
 		}
 	}
 	return false
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }
 
 func orTitle(p *string, title string) *string {

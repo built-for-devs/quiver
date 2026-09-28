@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/built-for-devs/quiver/internal/apperr"
 	"github.com/built-for-devs/quiver/internal/config"
@@ -21,6 +22,7 @@ type fakeMCP struct {
 	sse      bool
 	tools    map[string]map[string]any
 	handlers map[string]func(args map[string]any) map[string]any
+	schemas  map[string]*schema
 	calls    []map[string]any
 }
 
@@ -35,6 +37,10 @@ func (f *fakeMCP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Params json.RawMessage `json:"params"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
+	if string(req.Params) == "null" { // strict like the real server
+		http.Error(w, `{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error: Invalid JSON-RPC message"},"id":null}`, http.StatusBadRequest)
+		return
+	}
 	if req.ID == nil { // notification
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -47,6 +53,8 @@ func (f *fakeMCP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"protocolVersion": "2025-06-18",
 			"serverInfo":      map[string]any{"name": "quiver", "version": "1.2.3"},
 		}
+	case "tools/list":
+		result = map[string]any{"tools": []any{map[string]any{"name": "list_campaigns", "inputSchema": map[string]any{"type": "object"}}}}
 	case "tools/call":
 		if r.Header.Get("Mcp-Session-Id") != "sess-1" {
 			f.t.Errorf("tools/call missing session id")
@@ -57,6 +65,17 @@ func (f *fakeMCP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		json.Unmarshal(req.Params, &p)
 		f.calls = append(f.calls, map[string]any{"name": p.Name, "arguments": p.Arguments})
+		// Validate like the real server: unknown keys, required, enums, types.
+		if sch, known := f.schemas[p.Name]; !known {
+			f.t.Errorf("call to tool %q, which is not in the schema snapshot", p.Name)
+		} else if err := validate(sch, map[string]any(p.Arguments), p.Name); err != nil {
+			f.t.Errorf("schema violation: %v", err)
+			resp, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": *req.ID,
+				"error": map[string]any{"code": -32602, "message": err.Error()}})
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(resp)
+			return
+		}
 		res, ok := f.tools[p.Name]
 		if h, hok := f.handlers[p.Name]; hok {
 			res, ok = h(p.Arguments), true
@@ -106,10 +125,11 @@ func run(t *testing.T, env map[string]string, args ...string) (stdout, stderr st
 }
 
 func server(t *testing.T, sse bool) (*fakeMCP, map[string]string) {
-	f := &fakeMCP{t: t, sse: sse, tools: map[string]map[string]any{
+	f := &fakeMCP{t: t, sse: sse, schemas: loadSchemas(t), tools: map[string]map[string]any{
 		"list_campaigns":       textResult(`[{"id":"c1","name":"Q3 Launch","status":"active","notes":"x"}]`),
 		"apply_context_update": textResult(`{"ok":true}`),
-		"get_context":          textResult("# Positioning\nplain markdown"),
+		"get_context":          textResult(`{"version":1,"positioningStatement":"For teams...","wordsToUse":["fast"],"brandVoice":null}`),
+		"get_linear_payload":   textResult("# Plain text payload"),
 	}}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
@@ -142,9 +162,9 @@ func TestJSONOutput(t *testing.T) {
 		t.Fatalf("code=%d out=%s", code, out)
 	}
 	// Plain-text results are wrapped so --json output is always JSON.
-	out, _, _ = run(t, env, "context", "show", "--json")
+	out, _, _ = run(t, env, "research", "linear", "entry-1", "--json")
 	var wrapped map[string]string
-	if json.Unmarshal([]byte(out), &wrapped) != nil || !strings.HasPrefix(wrapped["text"], "# Positioning") {
+	if json.Unmarshal([]byte(out), &wrapped) != nil || !strings.HasPrefix(wrapped["text"], "# Plain text") {
 		t.Fatalf("out=%s", out)
 	}
 }
@@ -193,17 +213,20 @@ func TestJSONErrors(t *testing.T) {
 
 func TestApplyRequiresYes(t *testing.T) {
 	f, env := server(t, false)
-	_, stderr, code := run(t, env, "context", "apply", "p1")
+	args := []string{"context", "apply", "productCategory", "--value", "API consulting", "-m", "rename"}
+	_, stderr, code := run(t, env, args...)
 	if code != apperr.CodeUsage || !strings.Contains(stderr, "--yes") {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
-	if len(f.calls) != 0 {
+	if strings.Contains(callNames(f), "apply_context_update") {
 		t.Fatalf("apply ran without --yes: %v", f.calls)
 	}
-	if _, stderr, code := run(t, env, "context", "apply", "p1", "--yes"); code != 0 {
+	f.calls = nil
+	if _, stderr, code := run(t, env, append(args, "--yes")...); code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
-	if len(f.calls) != 1 || f.calls[0]["name"] != "apply_context_update" {
+	want := "map[change_summary:rename updates:map[productCategory:API consulting]]"
+	if callNames(f) != "get_context,apply_context_update" || fmt.Sprint(f.calls[1]["arguments"]) != want {
 		t.Fatalf("calls=%v", f.calls)
 	}
 }
@@ -217,12 +240,13 @@ func TestWorkspaceDerivesURL(t *testing.T) {
 
 func TestToolsCallArgs(t *testing.T) {
 	f, env := server(t, false)
-	_, stderr, code := run(t, env, "tools", "call", "list_campaigns", "-a", "limit=5", "-a", "mine=true", "-a", "q=hello", "--args", `{"status":"active"}`)
+	f.tools["list_research_entries"] = textResult(`[]`)
+	_, stderr, code := run(t, env, "tools", "call", "list_research_entries", "-a", "limit=5", "-a", "product_signal=true", "-a", "segment=smb", "--args", `{"theme":"pricing"}`)
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
 	got := f.calls[0]["arguments"].(map[string]any)
-	if got["limit"] != float64(5) || got["mine"] != true || got["q"] != "hello" || got["status"] != "active" {
+	if got["limit"] != float64(5) || got["product_signal"] != true || got["segment"] != "smb" || got["theme"] != "pricing" {
 		t.Fatalf("args=%v", got)
 	}
 }
@@ -238,11 +262,11 @@ func TestSpecArgMapping(t *testing.T) {
 	f.tools["list_tasks"] = textResult(`[]`)
 	f.tools["get_content"] = textResult(`{"slug":"launch-post"}`)
 
-	if _, stderr, code := run(t, env, "task", "ls", "--mine", "--today", "--limit", "3"); code != 0 {
+	if _, stderr, code := run(t, env, "task", "ls", "--today", "--all"); code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
 	got := f.calls[0]["arguments"].(map[string]any)
-	want := map[string]any{"mine": true, "dueToday": true, "limit": float64(3)}
+	want := map[string]any{"due_before": time.Now().Format(time.DateOnly), "include_closed": true}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("task ls args = %v, want %v (unset flags must not be sent)", got, want)
 	}
@@ -252,5 +276,13 @@ func TestSpecArgMapping(t *testing.T) {
 	}
 	if got := f.calls[1]["arguments"].(map[string]any); fmt.Sprint(got) != "map[slug:launch-post]" {
 		t.Errorf("content get args = %v", got)
+	}
+}
+
+func TestToolsList(t *testing.T) {
+	_, env := server(t, false)
+	out, stderr, code := run(t, env, "tools", "ls")
+	if code != 0 || !strings.Contains(out, "list_campaigns") {
+		t.Fatalf("code=%d out=%s stderr=%s", code, out, stderr)
 	}
 }

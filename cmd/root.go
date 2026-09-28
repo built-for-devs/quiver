@@ -35,6 +35,7 @@ var g globals
 // tests independent.
 func NewRoot() *cobra.Command {
 	g = globals{}
+	specs = nil
 	root := &cobra.Command{
 		Use:   "quiver",
 		Short: "Command-line client for Quiver",
@@ -93,7 +94,7 @@ func classifyCobraErr(err error) error {
 		return err
 	}
 	msg := err.Error()
-	for _, p := range []string{"unknown command", "unknown flag", "unknown shorthand", "required flag", "accepts ", "requires at least", "invalid argument"} {
+	for _, p := range []string{"unknown command", "unknown flag", "unknown shorthand", "required flag", "accepts ", "requires at least", "invalid argument", "if any flags in the group", "at least one of the flags in the group"} {
 		if strings.HasPrefix(msg, p) {
 			return apperr.Wrap(apperr.CodeUsage, err, "")
 		}

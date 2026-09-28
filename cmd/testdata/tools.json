@@ -1,0 +1,1951 @@
+[
+ {
+  "name": "action_proposal",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "log_id": {
+     "type": "string",
+     "description": "Performance log ID containing the proposal"
+    },
+    "action": {
+     "type": "string",
+     "enum": [
+      "approved",
+      "rejected"
+     ],
+     "description": "Action to take"
+    },
+    "modified_updates": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string"
+       },
+       "current": {
+        "type": "string"
+       },
+       "proposed": {},
+       "rationale": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "field",
+       "current",
+       "rationale"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Optional: modify proposals before approving"
+    }
+   },
+   "required": [
+    "log_id",
+    "action"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "add_competitor",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Competitor name"
+    },
+    "homepage_url": {
+     "type": "string",
+     "description": "Public https URL of their homepage"
+    },
+    "pages": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "surface": {
+        "type": "string",
+        "enum": [
+         "homepage",
+         "pricing",
+         "product",
+         "changelog",
+         "blog",
+         "reviews",
+         "careers",
+         "profile",
+         "docs",
+         "github",
+         "social"
+        ],
+        "description": "Which surface this page is"
+       },
+       "url": {
+        "type": "string",
+        "description": "Public https URL of the page"
+       }
+      },
+      "required": [
+       "surface",
+       "url"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Specific pages to watch. Omit to auto-discover from the homepage."
+    }
+   },
+   "required": [
+    "name",
+    "homepage_url"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "add_distribution",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug"
+    },
+    "channel": {
+     "type": "string",
+     "description": "Distribution channel (website, dev_to, hashnode, medium, newsletter, linkedin, twitter, youtube, other)"
+    },
+    "url": {
+     "type": "string",
+     "description": "The URL where the content went live (required)"
+    },
+    "status": {
+     "type": "string",
+     "default": "planned",
+     "description": "Distribution status"
+    },
+    "notes": {
+     "type": "string",
+     "description": "Notes"
+    }
+   },
+   "required": [
+    "channel",
+    "url"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "apply_context_update",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "updates": {
+     "type": "object",
+     "additionalProperties": {},
+     "propertyNames": {
+      "enum": [
+       "positioningStatement",
+       "productCategory",
+       "businessModel",
+       "icpDefinition",
+       "coreProblem",
+       "messagingPillars",
+       "keyDifferentiators",
+       "competitiveLandscape",
+       "whyAlternativesFallShort",
+       "customerLanguage",
+       "proofPoints",
+       "activeHypotheses",
+       "brandVoice",
+       "wordsToUse",
+       "wordsToAvoid"
+      ]
+     },
+     "description": "Field name \u2192 new value pairs to apply (only valid context field names accepted)"
+    },
+    "change_summary": {
+     "type": "string",
+     "description": "What changed and why (shown in version history)"
+    }
+   },
+   "required": [
+    "updates",
+    "change_summary"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "archive_artifact",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID"
+    }
+   },
+   "required": [
+    "artifact_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "archive_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug"
+    },
+    "title": {
+     "type": "string",
+     "description": "Content piece title (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "complete_task",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "task_id": {
+     "type": "string",
+     "description": "Task ID"
+    },
+    "task_title": {
+     "type": "string",
+     "description": "Open task title (partial match) when no task_id"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "create_campaign",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Campaign name"
+    },
+    "description": {
+     "type": "string",
+     "description": "Campaign description"
+    },
+    "goal": {
+     "type": "string",
+     "description": "Campaign goal"
+    },
+    "channels": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Marketing channels"
+    },
+    "priority": {
+     "type": "string",
+     "enum": [
+      "high",
+      "medium",
+      "low"
+     ],
+     "default": "medium",
+     "description": "Campaign priority"
+    },
+    "start_date": {
+     "type": "string",
+     "description": "Start date (ISO format)"
+    },
+    "end_date": {
+     "type": "string",
+     "description": "End date (ISO format)"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "create_task",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 300,
+     "description": "Short imperative task title"
+    },
+    "description": {
+     "type": "string",
+     "maxLength": 5000,
+     "description": "Details, acceptance criteria, or context"
+    },
+    "priority": {
+     "type": "string",
+     "enum": [
+      "high",
+      "medium",
+      "low"
+     ],
+     "description": "high, medium (default) or low"
+    },
+    "due_date": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Due date as YYYY-MM-DD (end of that day, UTC)"
+    },
+    "assignee_id": {
+     "type": "string",
+     "description": "Clerk user id of the owner"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID to link"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name (partial match) when no campaign_id"
+    },
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID to link"
+    },
+    "artifact_title": {
+     "type": "string",
+     "description": "Artifact title (partial match) when no artifact_id"
+    },
+    "content_piece_id": {
+     "type": "string",
+     "description": "Content piece ID to link"
+    },
+    "research_entry_id": {
+     "type": "string",
+     "description": "Research entry ID to link"
+    },
+    "session_id": {
+     "type": "string",
+     "description": "Session ID this task came from"
+    }
+   },
+   "required": [
+    "title"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_artifact",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID to delete"
+    }
+   },
+   "required": [
+    "artifact_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_campaign",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID to delete"
+    }
+   },
+   "required": [
+    "campaign_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug"
+    },
+    "title": {
+     "type": "string",
+     "description": "Content piece title (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_quote",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "quote_id": {
+     "type": "string",
+     "description": "Research quote ID to delete"
+    }
+   },
+   "required": [
+    "quote_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_research_entry",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Research entry ID to delete"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_session",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "session_id": {
+     "type": "string",
+     "description": "Session ID to delete"
+    }
+   },
+   "required": [
+    "session_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_artifact",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID (exact)"
+    },
+    "title": {
+     "type": "string",
+     "description": "Artifact title (case-insensitive partial match, returns most recent if multiple)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_campaign",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID (exact)"
+    },
+    "name": {
+     "type": "string",
+     "description": "Campaign name (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_close_the_loop_queue",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "overdue_only": {
+     "type": "boolean",
+     "default": false,
+     "description": "Only show reminders whose due date has already passed"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_competitive_intel",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "get_competitor",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "competitor_id": {
+     "type": "string",
+     "description": "Competitor id from list_competitors"
+    }
+   },
+   "required": [
+    "competitor_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug"
+    },
+    "title": {
+     "type": "string",
+     "description": "Content piece title (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_content_calendar",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "from": {
+     "type": "string",
+     "description": "Start date (ISO format, e.g. 2026-04-01)"
+    },
+    "to": {
+     "type": "string",
+     "description": "End date (ISO format, e.g. 2026-04-30)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_content_metrics",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug"
+    },
+    "limit": {
+     "type": "number",
+     "default": 24,
+     "description": "Number of snapshots to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_context",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "get_context_history",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "limit": {
+     "type": "number",
+     "default": 10,
+     "description": "Maximum number of versions to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_dashboard_summary",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "get_linear_payload",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "entry_id": {
+     "type": "string",
+     "description": "Research entry ID"
+    },
+    "entry_title": {
+     "type": "string",
+     "description": "Research entry title (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_performance_log",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "campaign_id": {
+     "type": "string",
+     "description": "Filter by campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Filter by campaign name (case-insensitive partial match)"
+    },
+    "artifact_id": {
+     "type": "string",
+     "description": "Filter by artifact ID"
+    },
+    "limit": {
+     "type": "number",
+     "default": 10,
+     "description": "Maximum number of entries to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_research_entry",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Research entry ID"
+    },
+    "title": {
+     "type": "string",
+     "description": "Research entry title (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_session",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "session_id": {
+     "type": "string",
+     "description": "Session ID"
+    }
+   },
+   "required": [
+    "session_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_artifacts",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "campaign_id": {
+     "type": "string",
+     "description": "Filter by campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Filter by campaign name (case-insensitive partial match)"
+    },
+    "type": {
+     "type": "string",
+     "description": "Filter by artifact type"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "draft",
+      "review",
+      "approved",
+      "live",
+      "archived"
+     ],
+     "description": "Filter by status"
+    },
+    "limit": {
+     "type": "number",
+     "default": 20,
+     "description": "Maximum number of artifacts to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_campaigns",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "enum": [
+      "planning",
+      "active",
+      "paused",
+      "complete",
+      "archived",
+      "all"
+     ],
+     "default": "active",
+     "description": "Filter by campaign status, or \"all\" for every campaign"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_competitors",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "list_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "description": "Filter by status (draft, review, approved, published, archived)"
+    },
+    "content_type": {
+     "type": "string",
+     "description": "Filter by content type (blog_post, case_study, etc.)"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Filter by campaign name (case-insensitive partial match)"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Filter by campaign ID"
+    },
+    "limit": {
+     "type": "number",
+     "default": 20,
+     "description": "Maximum number of results (default 20)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_proposals",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "enum": [
+      "pending",
+      "approved",
+      "rejected",
+      "all"
+     ],
+     "default": "pending",
+     "description": "Filter by proposal status"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_quotes",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "theme": {
+     "type": "string",
+     "description": "Filter by theme (pricing, onboarding, competitor_mention, feature_gap, messaging, icp_fit, other)"
+    },
+    "segment": {
+     "type": "string",
+     "description": "Filter by segment"
+    },
+    "featured_only": {
+     "type": "boolean",
+     "description": "Only show featured quotes"
+    },
+    "limit": {
+     "type": "number",
+     "default": 50,
+     "description": "Maximum quotes to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_research_entries",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "source_type": {
+     "type": "string",
+     "description": "Filter by source type (call, interview, survey, review, forum, support_ticket, social, common_room, other)"
+    },
+    "segment": {
+     "type": "string",
+     "description": "Filter by contact segment"
+    },
+    "stage": {
+     "type": "string",
+     "description": "Filter by contact stage (prospect, customer, churned, never_converted)"
+    },
+    "theme": {
+     "type": "string",
+     "description": "Filter by theme (pricing, onboarding, competitor_mention, feature_gap, messaging, icp_fit, other)"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Filter by campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Filter by campaign name (case-insensitive partial match)"
+    },
+    "product_signal": {
+     "type": "boolean",
+     "description": "Filter to only entries with product signals"
+    },
+    "limit": {
+     "type": "number",
+     "default": 20,
+     "description": "Maximum entries to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_sessions",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "strategy",
+      "create",
+      "feedback",
+      "analyze",
+      "optimize"
+     ],
+     "description": "Filter by session mode"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Filter by campaign ID"
+    },
+    "limit": {
+     "type": "number",
+     "default": 10,
+     "description": "Maximum number of sessions to return"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_tasks",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "enum": [
+      "todo",
+      "in_progress",
+      "done",
+      "canceled"
+     ],
+     "description": "Filter by a single status"
+    },
+    "assignee_id": {
+     "type": "string",
+     "description": "Filter by assignee (Clerk user id)"
+    },
+    "include_closed": {
+     "type": "boolean",
+     "description": "Include done and canceled tasks (ignored when status is set)"
+    },
+    "due_before": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Only tasks due on or before this YYYY-MM-DD date"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID to link"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name (partial match) when no campaign_id"
+    },
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID to link"
+    },
+    "artifact_title": {
+     "type": "string",
+     "description": "Artifact title (partial match) when no artifact_id"
+    },
+    "content_piece_id": {
+     "type": "string",
+     "description": "Content piece ID to link"
+    },
+    "research_entry_id": {
+     "type": "string",
+     "description": "Research entry ID to link"
+    },
+    "session_id": {
+     "type": "string",
+     "description": "Session ID this task came from"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "log_content_metrics",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug"
+    },
+    "pageviews": {
+     "type": "number",
+     "description": "Pageviews"
+    },
+    "unique_visitors": {
+     "type": "number",
+     "description": "Unique visitors"
+    },
+    "avg_time_on_page": {
+     "type": "number",
+     "description": "Avg time on page in seconds"
+    },
+    "bounce_rate": {
+     "type": "number",
+     "description": "Bounce rate (0-100)"
+    },
+    "organic_clicks": {
+     "type": "number",
+     "description": "Organic clicks"
+    },
+    "impressions": {
+     "type": "number",
+     "description": "Search impressions"
+    },
+    "avg_position": {
+     "type": "number",
+     "description": "Average search position"
+    },
+    "ctr": {
+     "type": "number",
+     "description": "Click-through rate (0-100)"
+    },
+    "social_shares": {
+     "type": "number",
+     "description": "Social shares"
+    },
+    "backlinks": {
+     "type": "number",
+     "description": "Backlinks count"
+    },
+    "comments": {
+     "type": "number",
+     "description": "Comments count"
+    },
+    "signups": {
+     "type": "number",
+     "description": "Signups attributed"
+    },
+    "conversion_rate": {
+     "type": "number",
+     "description": "Conversion rate (0-100)"
+    },
+    "notes": {
+     "type": "string",
+     "description": "Notes about this snapshot"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "log_performance",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID"
+    },
+    "artifact_title": {
+     "type": "string",
+     "description": "Artifact title (case-insensitive partial match)"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name (case-insensitive partial match)"
+    },
+    "metrics": {
+     "type": "object",
+     "additionalProperties": {
+      "type": [
+       "string",
+       "number"
+      ]
+     },
+     "description": "Metric name \u2192 value pairs (e.g. opens, replies, clicks)"
+    },
+    "qualitative_notes": {
+     "type": "string",
+     "description": "Qualitative notes"
+    },
+    "what_worked": {
+     "type": "string",
+     "description": "What worked"
+    },
+    "what_didnt": {
+     "type": "string",
+     "description": "What didn't work"
+    },
+    "period_start": {
+     "type": "string",
+     "description": "Period start (ISO date)"
+    },
+    "period_end": {
+     "type": "string",
+     "description": "Period end (ISO date)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "propose_context_update",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "proposals": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "Context field name, one of: positioningStatement, productCategory, businessModel, icpDefinition, coreProblem, messagingPillars, keyDifferentiators, competitiveLandscape, whyAlternativesFallShort, customerLanguage, proofPoints, activeHypotheses, brandVoice, wordsToUse, wordsToAvoid"
+       },
+       "current": {
+        "type": "string",
+        "description": "Current value as string (for the reviewer's context)"
+       },
+       "proposed": {
+        "description": "The COMPLETE new value for the field, which REPLACES the current value entirely on approval (type must match the field). Not a fragment, a diff or text to append \u2014 anything omitted here is erased from the field."
+       },
+       "rationale": {
+        "type": "string",
+        "description": "Why this change is being proposed"
+       }
+      },
+      "required": [
+       "field",
+       "current",
+       "rationale"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Array of field-level proposals"
+    },
+    "source_note": {
+     "type": "string",
+     "description": "What triggered this proposal, e.g. 'customer call with Acme 2026-04-11'"
+    }
+   },
+   "required": [
+    "proposals"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "remove_competitor",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "competitor_id": {
+     "type": "string",
+     "description": "Competitor id from list_competitors"
+    }
+   },
+   "required": [
+    "competitor_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "restore_context_version",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "version_id": {
+     "type": "string",
+     "description": "The id of the context version to restore"
+    }
+   },
+   "required": [
+    "version_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "run_competitor_scan",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "competitor_id": {
+     "type": "string",
+     "description": "Scan only this competitor, if it is due. Omit to scan every competitor that is due."
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "save_artifact",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "description": "Artifact title"
+    },
+    "type": {
+     "type": "string",
+     "enum": [
+      "copywriting",
+      "email_sequence",
+      "cold_email",
+      "social_content",
+      "launch_strategy",
+      "content_strategy",
+      "positioning",
+      "messaging",
+      "ad_creative",
+      "competitor_analysis",
+      "seo",
+      "cro",
+      "ab_test",
+      "landing_page",
+      "one_pager",
+      "pitch_deck",
+      "other"
+     ],
+     "description": "Artifact type"
+    },
+    "content": {
+     "type": "string",
+     "description": "Artifact content (markdown)"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name (case-insensitive partial match)"
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Tags"
+    },
+    "skill_used": {
+     "type": "string",
+     "description": "Skill used to generate this artifact"
+    }
+   },
+   "required": [
+    "title",
+    "type",
+    "content"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "save_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "description": "Content title"
+    },
+    "body": {
+     "type": "string",
+     "description": "Content body (markdown)"
+    },
+    "content_type": {
+     "type": "string",
+     "default": "blog_post",
+     "description": "Content type"
+    },
+    "slug": {
+     "type": "string",
+     "description": "URL slug (auto-generated if not provided)"
+    },
+    "excerpt": {
+     "type": "string",
+     "description": "Brief excerpt"
+    },
+    "meta_title": {
+     "type": "string",
+     "description": "SEO meta title"
+    },
+    "meta_description": {
+     "type": "string",
+     "description": "SEO meta description"
+    },
+    "target_keyword": {
+     "type": "string",
+     "description": "Primary target keyword"
+    },
+    "secondary_keywords": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Secondary keywords"
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Free-form tags"
+    },
+    "author": {
+     "type": "string",
+     "description": "Author name"
+    },
+    "canonical_url": {
+     "type": "string",
+     "description": "Canonical URL"
+    },
+    "og_title": {
+     "type": "string",
+     "description": "OG title"
+    },
+    "og_description": {
+     "type": "string",
+     "description": "OG description"
+    },
+    "og_image_url": {
+     "type": "string",
+     "description": "OG image URL"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name"
+    }
+   },
+   "required": [
+    "title",
+    "body"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "save_research_entry",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "description": "Entry title, e.g. \"Call with Acme \u2014 Apr 2026\""
+    },
+    "source_type": {
+     "type": "string",
+     "description": "Source type: call, interview, survey, review, forum, support_ticket, social, common_room, or other"
+    },
+    "raw_notes": {
+     "type": "string",
+     "description": "Raw research notes or transcript"
+    },
+    "contact_name": {
+     "type": "string",
+     "description": "Contact person name"
+    },
+    "contact_company": {
+     "type": "string",
+     "description": "Contact company"
+    },
+    "contact_segment": {
+     "type": "string",
+     "description": "ICP segment"
+    },
+    "contact_stage": {
+     "type": "string",
+     "description": "Contact stage: prospect, customer, churned, never_converted"
+    },
+    "research_date": {
+     "type": "string",
+     "description": "Date of research (ISO date)"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name (case-insensitive partial match)"
+    },
+    "product_signal": {
+     "type": "boolean",
+     "description": "Flag as product signal"
+    },
+    "product_note": {
+     "type": "string",
+     "description": "Note for product team"
+    }
+   },
+   "required": [
+    "title",
+    "source_type",
+    "raw_notes"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "set_competitive_intel",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "cadence": {
+     "type": "string",
+     "enum": [
+      "off",
+      "monthly",
+      "weekly"
+     ],
+     "description": "off, monthly or weekly"
+    }
+   },
+   "required": [
+    "cadence"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_artifact",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID to update"
+    },
+    "title": {
+     "type": "string",
+     "description": "New title"
+    },
+    "content": {
+     "type": "string",
+     "description": "New content"
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "New tags"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Campaign name (case-insensitive partial match)"
+    }
+   },
+   "required": [
+    "artifact_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_artifact_status",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "draft",
+      "review",
+      "approved",
+      "live",
+      "archived"
+     ],
+     "description": "New status"
+    }
+   },
+   "required": [
+    "artifact_id",
+    "status"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_campaign",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "name": {
+     "type": "string",
+     "description": "New name"
+    },
+    "description": {
+     "type": "string",
+     "description": "New description"
+    },
+    "goal": {
+     "type": "string",
+     "description": "New goal"
+    },
+    "channels": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "New channels"
+    },
+    "priority": {
+     "type": "string",
+     "enum": [
+      "high",
+      "medium",
+      "low"
+     ],
+     "description": "New priority"
+    },
+    "start_date": {
+     "type": "string",
+     "description": "New start date (ISO format)"
+    },
+    "end_date": {
+     "type": "string",
+     "description": "New end date (ISO format)"
+    }
+   },
+   "required": [
+    "campaign_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_campaign_status",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "planning",
+      "active",
+      "paused",
+      "complete",
+      "archived"
+     ],
+     "description": "New campaign status"
+    }
+   },
+   "required": [
+    "campaign_id",
+    "status"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_competitor",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "competitor_id": {
+     "type": "string",
+     "description": "Competitor id from list_competitors"
+    },
+    "name": {
+     "type": "string",
+     "description": "New name"
+    },
+    "homepage_url": {
+     "type": "string",
+     "description": "Corrected public https URL of their homepage"
+    },
+    "is_active": {
+     "type": "boolean",
+     "description": "False pauses scanning of this competitor; true resumes it"
+    },
+    "pages": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "surface": {
+        "type": "string",
+        "enum": [
+         "homepage",
+         "pricing",
+         "product",
+         "changelog",
+         "blog",
+         "reviews",
+         "careers",
+         "profile",
+         "docs",
+         "github",
+         "social"
+        ],
+        "description": "Which surface this page is"
+       },
+       "url": {
+        "type": "string",
+        "description": "Public https URL of the page"
+       }
+      },
+      "required": [
+       "surface",
+       "url"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Replacement list of watched pages. Omit to leave the current list alone."
+    }
+   },
+   "required": [
+    "competitor_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "content_id": {
+     "type": "string",
+     "description": "Content piece ID"
+    },
+    "slug": {
+     "type": "string",
+     "description": "Content piece slug (for lookup)"
+    },
+    "title": {
+     "type": "string",
+     "description": "New title"
+    },
+    "body": {
+     "type": "string",
+     "description": "New body"
+    },
+    "content_type": {
+     "type": "string",
+     "description": "New content type"
+    },
+    "excerpt": {
+     "type": "string",
+     "description": "New excerpt"
+    },
+    "meta_title": {
+     "type": "string",
+     "description": "New meta title"
+    },
+    "meta_description": {
+     "type": "string",
+     "description": "New meta description"
+    },
+    "target_keyword": {
+     "type": "string",
+     "description": "New target keyword"
+    },
+    "secondary_keywords": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "New secondary keywords"
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "New tags (replaces the list)"
+    },
+    "author": {
+     "type": "string",
+     "description": "New author name"
+    },
+    "canonical_url": {
+     "type": "string",
+     "description": "New canonical URL"
+    },
+    "og_title": {
+     "type": "string",
+     "description": "New OG title"
+    },
+    "og_description": {
+     "type": "string",
+     "description": "New OG description"
+    },
+    "og_image_url": {
+     "type": "string",
+     "description": "New OG image URL"
+    },
+    "published_at": {
+     "type": "string",
+     "format": "date-time",
+     "description": "Publish date as an ISO 8601 timestamp; use for imported posts that must keep their original date"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Move the piece to this campaign"
+    },
+    "campaign_name": {
+     "type": "string",
+     "description": "Move the piece to this campaign, by name (case-insensitive partial match)"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_quote",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "quote_id": {
+     "type": "string",
+     "description": "Research quote ID"
+    },
+    "featured": {
+     "type": "boolean",
+     "description": "Mark or unmark as featured (injects into AI session context)"
+    },
+    "theme": {
+     "type": "string",
+     "description": "Theme: pricing, onboarding, competitor_mention, feature_gap, messaging, icp_fit, other"
+    }
+   },
+   "required": [
+    "quote_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_research_entry",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "Research entry ID"
+    },
+    "title": {
+     "type": "string",
+     "description": "New title"
+    },
+    "research_date": {
+     "type": "string",
+     "description": "Research date (ISO 8601, e.g. 2026-04-11)"
+    },
+    "contact_name": {
+     "type": "string",
+     "description": "Contact person name"
+    },
+    "contact_company": {
+     "type": "string",
+     "description": "Contact company"
+    },
+    "contact_segment": {
+     "type": "string",
+     "description": "ICP segment"
+    },
+    "contact_stage": {
+     "type": "string",
+     "description": "Contact stage: prospect, customer, churned, never_converted"
+    },
+    "sentiment": {
+     "type": "string",
+     "description": "Sentiment override: positive, negative, neutral, mixed. Sets sentimentLocked = true."
+    },
+    "product_signal": {
+     "type": "boolean",
+     "description": "Flag as product signal"
+    },
+    "product_note": {
+     "type": "string",
+     "description": "Note for product team"
+    },
+    "source_type": {
+     "type": "string",
+     "description": "Source type: call, interview, survey, review, forum, support_ticket, social, common_room, other"
+    },
+    "raw_notes": {
+     "type": "string",
+     "description": "Raw research notes. REPLACES existing notes \u2014 does not append."
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "update_task",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "task_id": {
+     "type": "string",
+     "description": "Task ID"
+    },
+    "task_title": {
+     "type": "string",
+     "description": "Open task title (partial match) when no task_id"
+    },
+    "title": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 300,
+     "description": "New title"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 5000
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "New description (null clears)"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "todo",
+      "in_progress",
+      "done",
+      "canceled"
+     ],
+     "description": "todo, in_progress, done or canceled"
+    },
+    "priority": {
+     "type": "string",
+     "enum": [
+      "high",
+      "medium",
+      "low"
+     ]
+    },
+    "due_date": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+       "description": "Due date as YYYY-MM-DD (end of that day, UTC)"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "YYYY-MM-DD, or null to clear"
+    },
+    "assignee_id": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "Clerk user id, or null to unassign"
+    },
+    "campaign_id": {
+     "type": "string",
+     "description": "Campaign ID to link"
+    },
+    "artifact_id": {
+     "type": "string",
+     "description": "Artifact ID to link"
+    },
+    "content_piece_id": {
+     "type": "string",
+     "description": "Content piece ID to link"
+    },
+    "research_entry_id": {
+     "type": "string",
+     "description": "Research entry ID to link"
+    }
+   },
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ }
+]

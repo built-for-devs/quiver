@@ -1,0 +1,39 @@
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "orgId": "org_test",
+  "title": "Launch post",
+  "slug": "launch-post",
+  "contentType": "blog_post",
+  "status": "draft",
+  "body": "# Launch\n\nBody text.\n",
+  "excerpt": "Short excerpt.",
+  "metaTitle": "Launch meta title",
+  "metaDescription": "Launch meta description.",
+  "targetKeyword": "launch",
+  "secondaryKeywords": [
+    "a",
+    "b"
+  ],
+  "canonicalUrl": "https://example.com/launch",
+  "ogTitle": "Launch OG title",
+  "ogDescription": "Launch OG description.",
+  "ogImageUrl": "https://example.com/og.png",
+  "twitterCardType": "summary_large_image",
+  "tags": [
+    "launch"
+  ],
+  "author": "Sam",
+  "publishedAt": null,
+  "updatedAt": "2026-09-01T00:00:00.000Z",
+  "createdAt": "2026-09-01T00:00:00.000Z",
+  "campaignId": null,
+  "parentContentId": null,
+  "artifactId": null,
+  "contextVersionId": "00000000-0000-4000-8000-000000000002",
+  "createdBy": "mcp",
+  "campaign": null,
+  "distributions": [],
+  "metricSnapshots": [],
+  "derivedContent": [],
+  "parentContent": null
+}

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,37 +11,68 @@ import (
 	"github.com/built-for-devs/quiver/internal/apperr"
 )
 
-// contentStore backs get/save/update_content in the fake server.
+// contentStore backs get/save/update_content in the fake server using the
+// real protocol: snake_case arguments in, flat camelCase pieces out.
 type contentStore struct {
-	items   map[string]map[string]any
+	items   map[string]map[string]any // by slug
 	version int
 }
 
 func (s *contentStore) bump(item map[string]any) {
 	s.version++
-	item["updatedAt"] = "2026-09-0" + string(rune('0'+s.version)) + "T00:00:00Z"
+	item["updatedAt"] = fmt.Sprintf("2026-09-%02dT00:00:00Z", s.version)
+}
+
+func (s *contentStore) find(a map[string]any) map[string]any {
+	if id, ok := a["content_id"].(string); ok {
+		for _, it := range s.items {
+			if it["id"] == id {
+				return it
+			}
+		}
+		return nil
+	}
+	slug, _ := a["slug"].(string)
+	return s.items[slug]
+}
+
+// apply copies snake_case tool arguments onto a camelCase piece.
+func (s *contentStore) apply(item, args map[string]any) {
+	for k, v := range args {
+		if k == "content_id" || (k == "slug" && item["slug"] != nil) {
+			continue // lookup keys
+		}
+		item[camelKey(k)] = v
+	}
+}
+
+// camelKey maps a tool argument (meta_title) to its response key (metaTitle).
+func camelKey(k string) string {
+	parts := strings.Split(k, "_")
+	for i := 1; i < len(parts); i++ {
+		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+	}
+	return strings.Join(parts, "")
 }
 
 func newContentServer(t *testing.T) (*fakeMCP, *contentStore, map[string]string) {
 	f, env := server(t, false)
 	store := &contentStore{items: map[string]map[string]any{}}
-	store.items["launch-post"] = map[string]any{
-		"id": "cnt_1", "status": "published", "slug": "launch-post",
-		"title": "Launch", "contentType": "blog_post", "body": "Hello.\n",
-		"excerpt": "Short.", "tags": []any{"launch"}, "author": "Sam",
-		"meta": map[string]any{"title": nil, "description": "Meta desc.", "canonicalUrl": nil},
-		"og":   map[string]any{"title": nil, "description": "OG desc.", "imageUrl": "https://x.dev/og.png", "twitterCardType": "summary_large_image"},
-	}
-	store.bump(store.items["launch-post"])
+	var sample map[string]any
+	b, _ := os.ReadFile("../internal/content/testdata/get_content.json")
+	json.Unmarshal(b, &sample)
+	store.items["launch-post"] = sample
+	store.bump(sample)
 
 	asResult := func(v any) map[string]any {
 		b, _ := json.Marshal(v)
 		return textResult(string(b))
 	}
-	notFound := map[string]any{"isError": true, "content": []any{map[string]any{"type": "text", "text": "Content not found"}}}
+	notFound := map[string]any{"isError": true, "content": []any{map[string]any{"type": "text",
+		"text": "Content piece not found. Provide content_id, slug, or title."}}}
 	f.handlers = map[string]func(map[string]any) map[string]any{
 		"get_content": func(a map[string]any) map[string]any {
-			if it, ok := store.items[a["slug"].(string)]; ok {
+			if it := store.find(a); it != nil {
 				return asResult(it)
 			}
 			return notFound
@@ -48,28 +80,23 @@ func newContentServer(t *testing.T) (*fakeMCP, *contentStore, map[string]string)
 		"list_content": func(map[string]any) map[string]any {
 			var list []any
 			for _, it := range store.items {
-				list = append(list, map[string]any{"slug": it["slug"]})
+				list = append(list, map[string]any{"id": it["id"], "slug": it["slug"], "title": it["title"]})
 			}
-			return asResult(map[string]any{"items": list})
+			return asResult(list)
 		},
-		"save_content": func(args map[string]any) map[string]any {
-			a := map[string]any{}
-			for k, v := range args {
-				a[k] = v
-			}
-			a["id"], a["status"] = "cnt_new", "draft"
-			store.bump(a)
-			store.items[a["slug"].(string)] = a
-			return asResult(a)
+		"save_content": func(a map[string]any) map[string]any {
+			it := map[string]any{"id": fmt.Sprintf("new-%d", len(store.items)), "status": "draft"}
+			store.apply(it, a)
+			store.bump(it)
+			store.items[it["slug"].(string)] = it
+			return asResult(it)
 		},
 		"update_content": func(a map[string]any) map[string]any {
-			it, ok := store.items[a["slug"].(string)]
-			if !ok {
+			it := store.find(a)
+			if it == nil {
 				return notFound
 			}
-			for k, v := range a {
-				it[k] = v
-			}
+			store.apply(it, a)
 			store.bump(it)
 			return asResult(it)
 		},
@@ -94,7 +121,7 @@ func TestPullPushRoundTrip(t *testing.T) {
 		t.Fatalf("pull: code=%d stderr=%s", code, stderr)
 	}
 	pulled, _ := os.ReadFile(path)
-	if !strings.Contains(string(pulled), "updatedAt: \"2026-09-01T00:00:00Z\"") {
+	if !strings.Contains(string(pulled), "updatedAt: \"2026-09-01T00:00:00Z\"") || !strings.Contains(string(pulled), "id: 00000000-0000-4000-8000-000000000001") {
 		t.Fatalf("pulled file missing base:\n%s", pulled)
 	}
 
@@ -106,7 +133,7 @@ func TestPullPushRoundTrip(t *testing.T) {
 	}
 
 	// Edit title: only the title is sent, and the base is fast-forwarded.
-	os.WriteFile(path, []byte(strings.Replace(string(pulled), "title: Launch", "title: Launch day", 1)), 0o644)
+	os.WriteFile(path, []byte(strings.Replace(string(pulled), "title: Launch post", "title: Launch day", 1)), 0o644)
 	f.calls = nil
 	out, stderr, code = run(t, env, "content", "push", path)
 	if code != 0 || !strings.Contains(out, "updated") {
@@ -118,8 +145,8 @@ func TestPullPushRoundTrip(t *testing.T) {
 			update = c["arguments"].(map[string]any)
 		}
 	}
-	if len(update) != 2 || update["title"] != "Launch day" || update["slug"] != "launch-post" {
-		t.Errorf("update args = %v, want only slug+title", update)
+	if len(update) != 2 || update["title"] != "Launch day" || update["content_id"] != "00000000-0000-4000-8000-000000000001" {
+		t.Errorf("update args = %v, want only content_id+title", update)
 	}
 	if store.items["launch-post"]["title"] != "Launch day" {
 		t.Error("server not updated")
@@ -146,7 +173,7 @@ func TestPushConflict(t *testing.T) {
 	store.bump(store.items["launch-post"])
 
 	b, _ := os.ReadFile(path)
-	os.WriteFile(path, []byte(strings.Replace(string(b), "title: Launch", "title: Mine", 1)), 0o644)
+	os.WriteFile(path, []byte(strings.Replace(string(b), "title: Launch post", "title: Mine", 1)), 0o644)
 
 	f.calls = nil
 	_, stderr, code := run(t, env, "content", "push", path)
@@ -172,6 +199,7 @@ contentType: blog_post
 excerpt: Short.
 meta:
   description: Meta desc.
+  targetKeyword: new post
 og:
   description: OG desc.
   imageUrl: https://x.dev/og.png
@@ -197,11 +225,17 @@ Body text.
 	if store.items["new-post"]["status"] != "draft" {
 		t.Error("not created as draft")
 	}
-	if _, hasStatus := f.calls[len(f.calls)-2]["arguments"].(map[string]any)["status"]; hasStatus {
-		t.Error("push must never send status")
+	var save map[string]any
+	for _, c := range f.calls {
+		if c["name"] == "save_content" {
+			save = c["arguments"].(map[string]any)
+		}
+	}
+	if got := fmt.Sprint(save); got != "map[body:Body text. content_type:blog_post excerpt:Short. meta_description:Meta desc. og_description:OG desc. og_image_url:https://x.dev/og.png slug:new-post target_keyword:new post title:New post]" {
+		t.Errorf("save args = %s", got)
 	}
 	b, _ := os.ReadFile(path)
-	if !strings.Contains(string(b), "id: cnt_new") {
+	if !strings.Contains(string(b), "id: new-1") || strings.Count(callNames(f), "get_content") != 2 {
 		t.Errorf("base not recorded after create:\n%s", b)
 	}
 }
@@ -227,7 +261,7 @@ func TestPushInvalidBlocksWrite(t *testing.T) {
 
 func TestPullAll(t *testing.T) {
 	_, store, env := newContentServer(t)
-	store.items["second"] = map[string]any{"slug": "second", "title": "Second", "contentType": "changelog", "body": "b"}
+	store.items["second"] = map[string]any{"id": "id-2", "slug": "second", "title": "Second", "contentType": "changelog", "body": "b"}
 	dir := t.TempDir()
 	if _, stderr, code := run(t, env, "content", "pull", "--all", "--dir", dir); code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
@@ -255,5 +289,30 @@ func TestCheckCommand(t *testing.T) {
 	out, _, code := run(t, nil, "content", "check", dir, "--json")
 	if code != apperr.CodeValidation || !strings.Contains(out, `"ok": false`) || !strings.Contains(out, "unknown") {
 		t.Errorf("dir: code=%d out=%s", code, out)
+	}
+}
+
+func TestPushRejectsSlugRename(t *testing.T) {
+	f, _, env := newContentServer(t)
+	path := filepath.Join(t.TempDir(), "p.md")
+	run(t, env, "content", "pull", "launch-post", "-o", path)
+	b, _ := os.ReadFile(path)
+	os.WriteFile(path, []byte(strings.Replace(string(b), "slug: launch-post", "slug: renamed", 1)), 0o644)
+	f.calls = nil
+	out, _, code := run(t, env, "content", "push", path)
+	if code != apperr.CodeValidation || !strings.Contains(out, "renamed") || strings.Contains(callNames(f), "update_content") {
+		t.Fatalf("code=%d out=%s calls=%s", code, out, callNames(f))
+	}
+}
+
+func TestPushDeletedRemoteConflicts(t *testing.T) {
+	_, store, env := newContentServer(t)
+	path := filepath.Join(t.TempDir(), "p.md")
+	run(t, env, "content", "pull", "launch-post", "-o", path)
+	delete(store.items, "launch-post")
+	b, _ := os.ReadFile(path)
+	os.WriteFile(path, []byte(strings.Replace(string(b), "title: Launch post", "title: X", 1)), 0o644)
+	if _, _, code := run(t, env, "content", "push", path); code != apperr.CodeConflict {
+		t.Fatalf("code=%d", code)
 	}
 }

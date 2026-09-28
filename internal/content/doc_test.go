@@ -1,29 +1,20 @@
 package content
 
 import (
+	_ "embed"
+	"fmt"
 	"strings"
 	"testing"
 )
 
-// Shape taken from GET /api/public/content/<slug>, plus MCP-only state.
-const serverJSON = `{
-  "id": "cnt_1", "status": "published",
-  "slug": "mastra-web-agent-tabstack",
-  "title": "Build a web-connected Mastra agent with Tabstack",
-  "contentType": "blog_post",
-  "body": "Mastra gives you a clean ` + "`Agent`" + ` abstraction.\n\n## Install\n",
-  "excerpt": "A step by step tutorial.",
-  "tags": ["Integrate with your model stack"],
-  "author": "Steve McDougall",
-  "meta": {"title": null, "description": "Meta description.", "canonicalUrl": null},
-  "og": {"title": null, "description": "OG description.", "imageUrl": null, "twitterCardType": "summary_large_image"},
-  "publishedAt": "2026-08-03T05:00:00.000Z",
-  "updatedAt": "2026-09-22T02:36:56.856Z",
-  "distributions": [{"channel": "linkedin"}]
-}`
+// testdata/get_content.json is a real get_content response with IDs and
+// text anonymized.
+//
+//go:embed testdata/get_content.json
+var serverJSON []byte
 
 func TestRoundTrip(t *testing.T) {
-	remote, err := FromServer([]byte(serverJSON))
+	remote, err := FromServer(serverJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,25 +29,55 @@ func TestRoundTrip(t *testing.T) {
 	if d := Diff(local, remote); len(d) != 0 {
 		t.Errorf("round trip changed fields %v\n%s", d, b)
 	}
-	if *local.Quiver != *remote.Quiver || local.Quiver.UpdatedAt != "2026-09-22T02:36:56.856Z" {
-		t.Errorf("state not preserved: %+v", local.Quiver)
+	want := State{
+		ID:              "00000000-0000-4000-8000-000000000001",
+		Status:          "draft",
+		TwitterCardType: "summary_large_image",
+		UpdatedAt:       "2026-09-01T00:00:00.000Z",
+	}
+	if *local.Quiver != want {
+		t.Errorf("state = %+v, want %+v", *local.Quiver, want)
 	}
 	b2, _ := Marshal(local)
 	if string(b) != string(b2) {
 		t.Errorf("output not stable:\n%s\n---\n%s", b, b2)
 	}
-	if !strings.HasPrefix(string(b), "---\nslug: mastra-web-agent-tabstack\ntitle: ") {
-		t.Errorf("unexpected key order:\n%s", b)
-	}
-	if !strings.Contains(string(b), "---\nMastra gives you") {
-		t.Errorf("body not after frontmatter:\n%s", b)
+	for _, s := range []string{
+		"---\nslug: launch-post\ntitle: Launch post\ncontentType: blog_post\n",
+		"meta:\n  title: Launch meta title\n  description: Launch meta description.\n  canonicalUrl: https://example.com/launch\n  targetKeyword: launch\n  secondaryKeywords:\n    - a\n",
+		"og:\n  title: Launch OG title\n",
+		"---\n# Launch\n\nBody text.\n",
+	} {
+		if !strings.Contains(string(b), s) {
+			t.Errorf("output missing %q:\n%s", s, b)
+		}
 	}
 }
 
-func TestFromServerEnvelope(t *testing.T) {
-	d, err := FromServer([]byte(`{"content": ` + serverJSON + `}`))
-	if err != nil || d.Slug != "mastra-web-agent-tabstack" {
-		t.Fatalf("d=%v err=%v", d, err)
+func TestArgs(t *testing.T) {
+	d, _ := FromServer(serverJSON)
+	create := CreateArgs(d)
+	for _, k := range []string{"slug", "title", "body", "content_type", "meta_title", "meta_description", "canonical_url",
+		"target_keyword", "secondary_keywords", "og_title", "og_description", "og_image_url", "tags", "author", "excerpt"} {
+		if _, ok := create[k]; !ok {
+			t.Errorf("CreateArgs missing %s", k)
+		}
+	}
+	if len(create) != 15 {
+		t.Errorf("CreateArgs has %d keys: %v", len(create), create)
+	}
+
+	// Removing a field locally clears it on the server with "".
+	local, _ := FromServer(serverJSON)
+	local.Title = "New"
+	local.OG.ImageURL = nil
+	local.Meta.SecondaryKeywords = nil
+	changed := Diff(local, d)
+	if got := strings.Join(changed, ","); got != "title,meta.secondaryKeywords,og.imageUrl" {
+		t.Fatalf("diff = %s", got)
+	}
+	if got := fmt.Sprint(UpdateArgs(local, changed)); got != "map[og_image_url: secondary_keywords:[] title:New]" {
+		t.Errorf("UpdateArgs = %s", got)
 	}
 }
 
@@ -95,18 +116,18 @@ func TestDiffIgnoresEquivalentValues(t *testing.T) {
 	if d := Diff(a, b); len(d) != 0 {
 		t.Errorf("diff=%v", d)
 	}
-	b.Title = "T2"
-	b.Meta.Description = new("d")
-	if d := Diff(a, b); strings.Join(d, ",") != "meta,title" {
-		t.Errorf("diff=%v", d)
+	// The server stores cleared fields as "", which equals unset.
+	c, _ := FromServer([]byte(`{"slug":"x","title":"T","body":"body","excerpt":"","ogImageUrl":""}`))
+	if d := Diff(a, c); len(d) != 0 {
+		t.Errorf("diff vs cleared server fields=%v", d)
 	}
 }
 
 func TestCheck(t *testing.T) {
-	d, _ := FromServer([]byte(serverJSON))
+	d, _ := FromServer(serverJSON)
 	issues := Check(d)
-	if HasErrors(issues) {
-		t.Fatalf("valid doc has errors: %v", issues)
+	if len(issues) != 0 {
+		t.Fatalf("complete doc has issues: %v", issues)
 	}
 	fields := func(issues []Issue, sev Severity) string {
 		var f []string
@@ -117,15 +138,16 @@ func TestCheck(t *testing.T) {
 		}
 		return strings.Join(f, ",")
 	}
-	if got := fields(issues, SevWarning); got != "og.imageUrl" {
-		t.Errorf("warnings=%s", got)
-	}
 
 	d.Slug = "Bad Slug"
 	d.Meta.Description = nil
 	d.OG.ImageURL = new("not-a-url")
-	d.OG.TwitterCardType = new("huge")
-	if got := fields(Check(d), SevError); got != "slug,meta.description,og.imageUrl,og.twitterCardType" {
+	d.Excerpt = nil
+	issues = Check(d)
+	if got := fields(issues, SevError); got != "slug,meta.description,og.imageUrl" {
 		t.Errorf("errors=%s", got)
+	}
+	if got := fields(issues, SevWarning); got != "excerpt" {
+		t.Errorf("warnings=%s", got)
 	}
 }
