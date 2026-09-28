@@ -126,8 +126,9 @@ runs:
         # ARGS is split on whitespace like a shell command line; quote-free
         # paths are expected.
         read -ra argv <<< "$ARGS"
-        quiver "${argv[@]}" --json > "$out" 2> "$err"
-        code=$?
+        # Composite bash steps run with -e; capture the code instead of exiting.
+        code=0
+        quiver "${argv[@]}" --json > "$out" 2> "$err" || code=$?
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
         echo "json=$out" >> "$GITHUB_OUTPUT"
         echo "QUIVER_EXIT_CODE=$code" >> "$GITHUB_ENV"

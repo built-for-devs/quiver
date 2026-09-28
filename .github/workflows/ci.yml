@@ -76,7 +76,9 @@ jobs:
         env:
           REPORTED: ${{ steps.report.outputs.exit-code }}
           OUTCOME: ${{ steps.failing.outcome }}
+          FAILED_OUTPUT: ${{ steps.failing.outputs.exit-code }}
         run: |
+          echo "exit-code output after a failing run: '${FAILED_OUTPUT}'"
           fail=0
           if [ "$REPORTED" != 5 ]; then
             echo "::error::fail-on-error false: expected exit-code output 5, got '$REPORTED'"; fail=1
