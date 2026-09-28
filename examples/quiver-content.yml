@@ -1,0 +1,70 @@
+# Sync a git-managed content library to Quiver.
+#
+# Copy to .github/workflows/quiver-content.yml in your content repo, then:
+#   1. Set CONTENT_DIR and QUIVER_WORKSPACE below, and match the "posts/**"
+#      path filters to CONTENT_DIR (on: can't read env).
+#   2. Add a QUIVER_TOKEN repository secret: a Quiver API token with the mcp
+#      scope (Quiver: Settings > API tokens).
+#
+# Pull requests: validate SEO/OG metadata and preview what would change.
+# Merges to main: push changed files to Quiver. New posts are created as
+# drafts; publishing still happens in the Quiver UI.
+name: Quiver content
+
+on:
+  pull_request:
+    paths: ["posts/**"]
+  push:
+    branches: [main]
+    paths: ["posts/**"]
+
+env:
+  CONTENT_DIR: posts
+  QUIVER_WORKSPACE: your-workspace
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # Offline: no token needed, so this also runs on pull requests from forks.
+      - name: Validate metadata
+        uses: built-for-devs/quiver@v1
+        with:
+          args: content check ${{ env.CONTENT_DIR }}
+
+      # Shows what a merge would change, and fails early if a post changed in
+      # Quiver since it was pulled. Secrets aren't available to fork PRs.
+      - name: Preview changes
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: built-for-devs/quiver@v1
+        with:
+          args: content push ${{ env.CONTENT_DIR }} --dry-run
+          workspace: ${{ env.QUIVER_WORKSPACE }}
+          token: ${{ secrets.QUIVER_TOKEN }}
+
+  push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # One sync at a time; queued runs wait instead of racing.
+    concurrency:
+      group: quiver-content-push
+      cancel-in-progress: false
+    permissions:
+      contents: write # commit-state commits refreshed quiver: blocks
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Push to Quiver
+        uses: built-for-devs/quiver@v1
+        with:
+          args: content push ${{ env.CONTENT_DIR }}
+          workspace: ${{ env.QUIVER_WORKSPACE }}
+          token: ${{ secrets.QUIVER_TOKEN }}
+          # Push records each post's new server version in its file. Commit
+          # that back so the next merge doesn't see a false conflict.
+          commit-state: "true"

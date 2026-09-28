@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: make lint
+      - run: make test
+
+  release-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: "~> v2"
+          args: check
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: "~> v2"
+          args: release --snapshot --clean --skip=before
+
+  # Run the composite action from this checkout, built from source.
+  action:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Check valid content
+        uses: ./
+        with:
+          version: source
+          args: content check examples/posts --strict
+      - name: Check invalid content (expected to fail)
+        id: invalid
+        uses: ./
+        continue-on-error: true
+        with:
+          version: source
+          args: content check testdata/action/invalid
+      - name: Assert validation exit code
+        env:
+          CODE: ${{ steps.invalid.outputs.exit-code }}
+        run: |
+          if [ "$CODE" != 5 ]; then
+            echo "::error::expected exit code 5 from invalid content, got '$CODE'"
+            exit 1
+          fi

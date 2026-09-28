@@ -1,0 +1,146 @@
+name: Quiver CLI
+description: Run the quiver CLI, e.g. to check and push a git-managed content library to Quiver.
+author: Built for Devs
+branding:
+  icon: send
+  color: purple
+
+inputs:
+  args:
+    description: >-
+      Arguments to pass to quiver, e.g. "content check posts/" or
+      "content push posts/". --json is added automatically.
+    required: true
+  workspace:
+    description: Quiver workspace slug (the subdomain of your Quiver URL).
+    required: false
+  token:
+    description: >-
+      Quiver API token with the mcp scope. Pass it from a secret. Not needed
+      for offline commands like "content check".
+    required: false
+  api-url:
+    description: Override the MCP endpoint URL.
+    required: false
+  version:
+    description: >-
+      quiver release to install, e.g. "v1.2.0", or "latest". "source" builds
+      from the action's own checkout (requires Go), for testing unreleased
+      changes.
+    required: false
+    default: latest
+  commit-state:
+    description: >-
+      After the command, commit files it modified (the quiver: blocks that
+      content push refreshes) back to the current branch. Keeps the repo's
+      conflict-detection base in sync with the server. Needs
+      "permissions: contents: write" and a checkout with credentials.
+    required: false
+    default: "false"
+  commit-message:
+    description: Commit message used with commit-state.
+    required: false
+    default: "Sync Quiver state [skip ci]"
+
+outputs:
+  exit-code:
+    description: quiver's exit code (0 ok, 2 usage, 3 auth, 4 not found, 5 validation, 6 unavailable, 7 conflict).
+    value: ${{ steps.run.outputs.exit-code }}
+  json:
+    description: Path to a file with quiver's --json output.
+    value: ${{ steps.run.outputs.json }}
+  committed:
+    description: '"true" if commit-state pushed a commit.'
+    value: ${{ steps.commit.outputs.committed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install quiver
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ github.token }}
+        ACTION_PATH: ${{ github.action_path }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+        RUNNER_ARCH_NAME: ${{ runner.arch }}
+      run: |
+        set -euo pipefail
+        bin="$RUNNER_TEMP/quiver-bin"
+        mkdir -p "$bin"
+
+        if [ "$VERSION" = "source" ]; then
+          (cd "$ACTION_PATH" && go build -o "$bin/quiver" .)
+        else
+          case "$RUNNER_OS_NAME" in
+            Linux) os=linux ;;
+            macOS) os=darwin ;;
+            *) echo "::error::quiver action supports Linux and macOS runners, not $RUNNER_OS_NAME"; exit 1 ;;
+          esac
+          case "$RUNNER_ARCH_NAME" in
+            X64) arch=amd64 ;;
+            ARM64) arch=arm64 ;;
+            *) echo "::error::unsupported runner architecture $RUNNER_ARCH_NAME"; exit 1 ;;
+          esac
+          archive="quiver_${os}_${arch}.tar.gz"
+          tag=()
+          [ "$VERSION" != "latest" ] && tag=("$VERSION")
+
+          cd "$RUNNER_TEMP"
+          # ${tag[@]+...} keeps bash 3.2 (macOS runners) happy under set -u.
+          gh release download ${tag[@]+"${tag[@]}"} --repo built-for-devs/quiver \
+            --pattern "$archive" --pattern checksums.txt --clobber
+          grep " ${archive}\$" checksums.txt | shasum -a 256 --check --strict
+          tar -xzf "$archive" -C "$bin" quiver
+        fi
+
+        echo "$bin" >> "$GITHUB_PATH"
+        "$bin/quiver" --version
+
+    - name: Run quiver ${{ inputs.args }}
+      id: run
+      shell: bash
+      env:
+        ARGS: ${{ inputs.args }}
+        QUIVER_WORKSPACE: ${{ inputs.workspace }}
+        QUIVER_TOKEN: ${{ inputs.token }}
+        QUIVER_API_URL: ${{ inputs.api-url }}
+        # Keep runner config out of the way; everything comes from env.
+        QUIVER_CONFIG: ${{ runner.temp }}/quiver-config
+      run: |
+        set -uo pipefail
+        out="$RUNNER_TEMP/quiver-output.json"
+        err="$RUNNER_TEMP/quiver-error.json"
+        # ARGS is split on whitespace like a shell command line; quote-free
+        # paths are expected.
+        read -ra argv <<< "$ARGS"
+        quiver "${argv[@]}" --json > "$out" 2> "$err"
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "json=$out" >> "$GITHUB_OUTPUT"
+
+        "$GITHUB_ACTION_PATH/scripts/summarize.sh" "$ARGS" "$out" "$err" "$code"
+        exit "$code"
+
+    - name: Commit refreshed Quiver state
+      id: commit
+      # Also after a partial failure: files that did push have a refreshed
+      # base that must be kept, or they conflict on the next run.
+      if: always() && inputs.commit-state == 'true' && steps.run.outputs.exit-code != ''
+      shell: bash
+      env:
+        MESSAGE: ${{ inputs.commit-message }}
+      run: |
+        set -euo pipefail
+        if git diff --quiet; then
+          echo "No state changes to commit."
+          echo "committed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git commit --quiet --all --message "$MESSAGE"
+        git pull --rebase --quiet
+        git push --quiet
+        echo "committed=true" >> "$GITHUB_OUTPUT"
+        echo "Committed refreshed quiver: blocks."

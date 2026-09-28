@@ -7,8 +7,12 @@ subcommands, `--json` on everything, and exit codes you can rely on in CI.
 ## Install
 
 ```sh
-make install        # or: go install github.com/built-for-devs/quiver@latest
+brew install --cask built-for-devs/tap/quiver
 ```
+
+Or download a binary for macOS, Linux, or Windows from
+[Releases](https://github.com/built-for-devs/quiver/releases), or build from
+source with `go install github.com/built-for-devs/quiver@latest`.
 
 ## Setup
 
@@ -131,11 +135,67 @@ These commands prompt on a terminal and refuse to run in scripts without
 | 6    | unavailable   | network error, timeout, or server 5xx           |
 | 7    | conflict      | remote changed since the local copy was pulled  |
 
+## GitHub Actions
+
+This repo is also a GitHub Action. It installs a checksum-verified release
+binary and runs any quiver command, with results in the job summary and
+errors annotated on the affected files.
+
+```yaml
+- uses: built-for-devs/quiver@v1
+  with:
+    args: content push posts
+    workspace: your-workspace
+    token: ${{ secrets.QUIVER_TOKEN }}
+    commit-state: "true"
+```
+
+| Input            | Default   | Description |
+|------------------|-----------|-------------|
+| `args`           | required  | quiver arguments; `--json` is added |
+| `workspace`      |           | workspace slug |
+| `token`          |           | API token with the `mcp` scope (from a secret) |
+| `api-url`        |           | override the endpoint |
+| `version`        | `latest`  | release tag, `latest`, or `source` to build from the action checkout |
+| `commit-state`   | `false`   | commit files the command modified back to the branch |
+| `commit-message` | `Sync Quiver state [skip ci]` | message for that commit |
+
+Outputs: `exit-code`, `json` (path to the `--json` output), `committed`.
+
+[`examples/quiver-content.yml`](examples/quiver-content.yml) is a complete
+workflow for a content repo: pull requests run `content check` and a
+`push --dry-run` preview; merges to `main` run `content push`.
+
+Use `commit-state: "true"` on the push job. `push` records each post's new
+server version in its file; without committing that back, the next merge of
+the same post fails with a false conflict. The push job needs
+`permissions: contents: write`, and branch protection must allow
+`github-actions[bot]` to push.
+
+## Releasing
+
+Tag a version and push the tag:
+
+```sh
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+The release workflow builds archives for macOS, Linux, and Windows (amd64,
+arm64) with GoReleaser, publishes them with checksums, and moves the `v1` tag
+so `built-for-devs/quiver@v1` picks up the release. The Homebrew cask is
+published to `built-for-devs/homebrew-tap` when the
+`HOMEBREW_TAP_GITHUB_TOKEN` secret is set, and skipped otherwise. Tags with a
+suffix (`v1.1.0-rc.1`) are marked as prereleases and don't move `v1` or the
+cask.
+
+`make snapshot` builds the same archives locally into `dist/`.
+
 ## Development
 
 ```sh
 make test
-make lint
+make lint           # gofmt + go vet
+make lint-actions   # actionlint on workflows
 make build
 ```
 
