@@ -215,3 +215,7 @@ the snapshot and fix whatever fails:
 quiver tools ls --json | jq '[.[] | {name, inputSchema}] | sort_by(.name)' > cmd/testdata/tools.json
 make test
 ```
+
+## License
+
+[MIT](LICENSE)
