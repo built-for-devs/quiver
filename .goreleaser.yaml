@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: quiver
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: quiver
+    main: .
+    binary: quiver
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/built-for-devs/quiver/cmd.Version={{ .Version }}
+
+archives:
+  - id: quiver
+    # No version in the name, so releases/latest/download/<name> is stable.
+    # action.yml depends on this naming.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^Merge "
+
+homebrew_casks:
+  - name: quiver
+    repository:
+      owner: built-for-devs
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://quivergtm.dev
+    description: Command-line client for Quiver
+    # Skip until a tap token is configured, and never for prereleases.
+    skip_upload: '{{ if or (not (index .Env "HOMEBREW_TAP_GITHUB_TOKEN")) .Prerelease }}true{{ end }}'
+    commit_author:
+      name: quiver-release-bot
+      email: noreply@quivergtm.dev
+    hooks:
+      post:
+        # Binaries are not notarized; clear the quarantine flag so macOS
+        # runs them.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/quiver"]
+          end
+
+release:
+  github:
+    owner: built-for-devs
+    name: quiver
+  prerelease: auto
