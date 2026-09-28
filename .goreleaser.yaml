@@ -42,27 +42,32 @@ changelog:
     exclude:
       - "^Merge "
 
+# This repo doubles as the Homebrew tap: the cask is committed to Casks/ on
+# main, using the release workflow's GITHUB_TOKEN.
 homebrew_casks:
   - name: quiver
     repository:
       owner: built-for-devs
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://quivergtm.dev
+      name: quiver
+      branch: main
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: https://quivergtm.dev/
     description: Command-line client for Quiver
-    # Skip until a tap token is configured, and never for prereleases.
-    skip_upload: '{{ if or (not (index .Env "HOMEBREW_TAP_GITHUB_TOKEN")) .Prerelease }}true{{ end }}'
+    skip_upload: auto # not for prereleases
     commit_author:
-      name: quiver-release-bot
-      email: noreply@quivergtm.dev
-    hooks:
-      post:
-        # Binaries are not notarized; clear the quarantine flag so macOS
-        # runs them.
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/quiver"]
-          end
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    commit_msg_template: "Update Homebrew cask to {{ .Tag }} [skip ci]"
+    # Binaries are not notarized; clear the quarantine flag so macOS runs
+    # them. Uses Homebrew's postflight_steps (plain postflight is deprecated).
+    # {{staged_path}} is a Homebrew token, escaped from GoReleaser templating.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/quiver"]
+        end
+      end
 
 release:
   github:

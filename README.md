@@ -7,7 +7,8 @@ subcommands, `--json` on everything, and exit codes you can rely on in CI.
 ## Install
 
 ```sh
-brew install --cask built-for-devs/tap/quiver
+brew tap built-for-devs/quiver https://github.com/built-for-devs/quiver
+brew install --cask built-for-devs/quiver/quiver
 ```
 
 Or download a binary for macOS, Linux, or Windows from
@@ -186,11 +187,11 @@ git tag v1.0.0 && git push origin v1.0.0
 
 The release workflow builds archives for macOS, Linux, and Windows (amd64,
 arm64) with GoReleaser, publishes them with checksums, and moves the `v1` tag
-so `built-for-devs/quiver@v1` picks up the release. The Homebrew cask is
-published to `built-for-devs/homebrew-tap` when the
-`HOMEBREW_TAP_GITHUB_TOKEN` secret is set, and skipped otherwise. Tags with a
-suffix (`v1.1.0-rc.1`) are marked as prereleases and don't move `v1` or the
-cask.
+so `built-for-devs/quiver@v1` picks up the release. It also commits the
+updated Homebrew cask to `Casks/quiver.rb` on `main`; this repo is the tap.
+Branch protection on `main`, if enabled, must allow `github-actions[bot]` to
+push. Tags with a suffix (`v1.1.0-rc.1`) are marked as prereleases and don't
+move `v1` or the cask.
 
 `make snapshot` builds the same archives locally into `dist/`.
 
