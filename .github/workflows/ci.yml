@@ -11,6 +11,7 @@ permissions:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -43,6 +44,7 @@ jobs:
   # Run the composite action from this checkout, built from source.
   action:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -56,18 +58,33 @@ jobs:
         with:
           version: source
           args: content check examples/posts --strict
-      - name: Check invalid content (expected to fail)
-        id: invalid
+      - name: Check invalid content, reporting only
+        id: report
+        uses: ./
+        with:
+          version: source
+          args: content check testdata/action/invalid
+          fail-on-error: "false"
+      - name: Check invalid content, failing (expected to fail)
+        id: failing
         uses: ./
         continue-on-error: true
         with:
           version: source
           args: content check testdata/action/invalid
-      - name: Assert validation exit code
+      - name: Assert exit codes
         env:
-          CODE: ${{ steps.invalid.outputs.exit-code }}
+          REPORTED: ${{ steps.report.outputs.exit-code }}
+          OUTCOME: ${{ steps.failing.outcome }}
         run: |
-          if [ "$CODE" != 5 ]; then
-            echo "::error::expected exit code 5 from invalid content, got '$CODE'"
-            exit 1
+          fail=0
+          if [ "$REPORTED" != 5 ]; then
+            echo "::error::fail-on-error false: expected exit-code output 5, got '$REPORTED'"; fail=1
           fi
+          if [ "$OUTCOME" != failure ]; then
+            echo "::error::fail-on-error true: expected the step to fail, got '$OUTCOME'"; fail=1
+          fi
+          if [ "$QUIVER_EXIT_CODE" != 5 ]; then
+            echo "::error::expected QUIVER_EXIT_CODE=5, got '$QUIVER_EXIT_CODE'"; fail=1
+          fi
+          exit "$fail"

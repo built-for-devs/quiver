@@ -29,6 +29,13 @@ inputs:
       changes.
     required: false
     default: latest
+  fail-on-error:
+    description: >-
+      Fail the step when quiver exits non-zero (the default). Set to "false"
+      to always succeed and branch on the exit-code output instead: GitHub
+      drops a composite action's outputs when it fails.
+    required: false
+    default: "true"
   commit-state:
     description: >-
       After the command, commit files it modified (the quiver: blocks that
@@ -44,7 +51,11 @@ inputs:
 
 outputs:
   exit-code:
-    description: quiver's exit code (0 ok, 2 usage, 3 auth, 4 not found, 5 validation, 6 unavailable, 7 conflict).
+    description: >-
+      quiver's exit code (0 ok, 2 usage, 3 auth, 4 not found, 5 validation,
+      6 unavailable, 7 conflict). Only set when the step succeeds; use
+      fail-on-error "false" to read it after a failure, or the
+      QUIVER_EXIT_CODE environment variable in later steps.
     value: ${{ steps.run.outputs.exit-code }}
   json:
     description: Path to a file with quiver's --json output.
@@ -102,6 +113,7 @@ runs:
       shell: bash
       env:
         ARGS: ${{ inputs.args }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
         QUIVER_WORKSPACE: ${{ inputs.workspace }}
         QUIVER_TOKEN: ${{ inputs.token }}
         QUIVER_API_URL: ${{ inputs.api-url }}
@@ -118,9 +130,12 @@ runs:
         code=$?
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
         echo "json=$out" >> "$GITHUB_OUTPUT"
+        echo "QUIVER_EXIT_CODE=$code" >> "$GITHUB_ENV"
 
         "$GITHUB_ACTION_PATH/scripts/summarize.sh" "$ARGS" "$out" "$err" "$code"
-        exit "$code"
+        if [ "$FAIL_ON_ERROR" != "false" ]; then
+          exit "$code"
+        fi
 
     - name: Commit refreshed Quiver state
       id: commit

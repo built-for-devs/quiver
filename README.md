@@ -157,10 +157,14 @@ errors annotated on the affected files.
 | `token`          |           | API token with the `mcp` scope (from a secret) |
 | `api-url`        |           | override the endpoint |
 | `version`        | `latest`  | release tag, `latest`, or `source` to build from the action checkout |
+| `fail-on-error`  | `true`    | fail the step on a non-zero exit; `"false"` to branch on `exit-code` instead |
 | `commit-state`   | `false`   | commit files the command modified back to the branch |
 | `commit-message` | `Sync Quiver state [skip ci]` | message for that commit |
 
 Outputs: `exit-code`, `json` (path to the `--json` output), `committed`.
+GitHub drops a composite action's outputs when it fails, so to act on a
+specific exit code (e.g. 7 for a conflict), set `fail-on-error: "false"`, or
+read the `QUIVER_EXIT_CODE` environment variable in a later step.
 
 [`examples/quiver-content.yml`](examples/quiver-content.yml) is a complete
 workflow for a content repo: pull requests run `content check` and a
