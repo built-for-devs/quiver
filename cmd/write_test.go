@@ -23,7 +23,7 @@ func TestWriteCommandArgs(t *testing.T) {
 		{[]string{"campaign", "create", "--name", "Q3", "--start", "2026-10-01", "--channel", "linkedin,newsletter"}, "create_campaign",
 			"map[channels:[linkedin newsletter] name:Q3 start_date:2026-10-01]"},
 		{[]string{"campaign", "get", "Q3 launch"}, "get_campaign", "map[name:Q3 launch]"},
-		{[]string{"campaign", "get", "d3191e8e-d312-42a2-acc4-5f66f439361f"}, "get_campaign", "map[campaign_id:d3191e8e-d312-42a2-acc4-5f66f439361f]"},
+		{[]string{"campaign", "get", "00000000-0000-4000-8000-000000000003"}, "get_campaign", "map[campaign_id:00000000-0000-4000-8000-000000000003]"},
 		{[]string{"perf", "log", "--campaign", "Q3", "-m", "signups=42", "-m", "source=organic"}, "log_performance",
 			"map[campaign_name:Q3 metrics:map[signups:42 source:organic]]"},
 		{[]string{"content", "log-metrics", "launch-post", "--pageviews", "1200", "--ctr", "3.1"}, "log_content_metrics", "map[ctr:3.1 pageviews:1200 slug:launch-post]"},
