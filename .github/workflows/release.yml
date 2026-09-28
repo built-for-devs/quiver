@@ -25,8 +25,8 @@ jobs:
           # Also commits the Homebrew cask to Casks/ on main.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Keep the major tag (v1) pointing at the latest stable release, so
-      # workflows can use built-for-devs/quiver@v1.
+      # Keep the major tag (v0, v1, ...) pointing at the latest stable
+      # release, so workflows can use built-for-devs/quiver@v0.
       - name: Move major version tag
         if: ${{ !contains(github.ref_name, '-') }}
         run: |

@@ -143,7 +143,7 @@ binary and runs any quiver command, with results in the job summary and
 errors annotated on the affected files.
 
 ```yaml
-- uses: built-for-devs/quiver@v1
+- uses: built-for-devs/quiver@v0
   with:
     args: content push posts
     workspace: your-workspace
@@ -186,12 +186,13 @@ git tag v1.0.0 && git push origin v1.0.0
 ```
 
 The release workflow builds archives for macOS, Linux, and Windows (amd64,
-arm64) with GoReleaser, publishes them with checksums, and moves the `v1` tag
-so `built-for-devs/quiver@v1` picks up the release. It also commits the
+arm64) with GoReleaser, publishes them with checksums, and moves the major
+version tag (`v0` until 1.0, then `v1`) so `built-for-devs/quiver@v0` picks up
+the release. It also commits the
 updated Homebrew cask to `Casks/quiver.rb` on `main`; this repo is the tap.
 Branch protection on `main`, if enabled, must allow `github-actions[bot]` to
-push. Tags with a suffix (`v1.1.0-rc.1`) are marked as prereleases and don't
-move `v1` or the cask.
+push. Tags with a suffix (`v0.2.0-rc.1`) are marked as prereleases and don't
+move the major tag or the cask.
 
 `make snapshot` builds the same archives locally into `dist/`.
 
