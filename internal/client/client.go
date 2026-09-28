@@ -14,6 +14,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -166,7 +167,7 @@ func (c *Client) ListTools(ctx context.Context) ([]Tool, error) {
 	var all []Tool
 	cursor := ""
 	for {
-		var params map[string]any
+		var params any // untyped nil, so omitempty drops it; servers reject "params": null
 		if cursor != "" {
 			params = map[string]any{"cursor": cursor}
 		}
@@ -376,6 +377,9 @@ func rpcErr(method string, e *rpcError) error {
 	}
 }
 
+// noneFoundRe matches phrasings like "No campaign found matching 'x'".
+var noneFoundRe = regexp.MustCompile(`\bno [a-z ]*found\b`)
+
 // classify maps a free-text tool error to an exit code. Heuristic by
 // necessity: MCP tool errors are text, not typed.
 func classify(msg string) int {
@@ -389,7 +393,7 @@ func classify(msg string) int {
 		return false
 	}
 	switch {
-	case has("not found", "no such", "does not exist", "unknown tool"):
+	case has("not found", "no such", "does not exist", "unknown tool") || noneFoundRe.MatchString(m):
 		return apperr.CodeNotFound
 	case has("unauthorized", "unauthenticated", "forbidden", "permission denied", "insufficient scope", "invalid token"):
 		return apperr.CodeAuth
