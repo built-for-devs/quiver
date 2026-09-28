@@ -37,7 +37,7 @@ Precedence is flag, then environment, then config file.
 
 ```
 quiver dashboard
-quiver context    show | history | propose -f | apply <id> | restore <version>
+quiver context    show [--field] | history | propose <field> | apply <field> | restore <version>
 quiver campaign   ls | get | create | update | status <id> <state>
 quiver artifact   ls | get | save | update | status <id> <state>
 quiver content    ls | calendar | get | metrics | log-metrics | distribute
@@ -52,6 +52,25 @@ quiver tools      ls | describe <tool> | call <tool>
 
 `quiver <command> --help` shows flags and examples. `quiver tools call` reaches
 any tool without a dedicated command.
+
+Arguments that name a record accept an ID or a name: `quiver campaign get
+"Q3 launch"` and `--campaign "Q3 launch"` work as well as UUIDs. Enum flags
+(`--status`, `--type`, `--channel`, ...) are checked locally and tab-complete
+once shell completion is installed (`quiver completion --help`).
+
+## Editing context
+
+Context changes are made one field at a time and replace the whole field.
+Export the field, edit it, and propose the complete new value for review in
+the Quiver UI:
+
+```sh
+quiver context show --field messagingPillars > pillars.yaml   # lists and objects as YAML
+$EDITOR pillars.yaml
+quiver context propose messagingPillars -f pillars.yaml -r "Acme call feedback"
+```
+
+Text fields (e.g. `positioningStatement`) are exported and proposed as plain text.
 
 ## Content as files
 
@@ -72,14 +91,18 @@ quiver content push posts/
   run on every merge.
 - If an item changed on the server since you pulled it, `push` stops with exit
   code 7. Pull again, or pass `--force` to overwrite.
+- Files remember the piece they were pulled from (`quiver.id`), so push always
+  updates that piece. Slugs can't be renamed from the CLI.
+- Removing a field in the file clears it on the server.
 - New slugs are created as drafts. The CLI cannot publish; that happens in the
   Quiver UI.
 
 ## Guardrails
 
-`context propose` is the default way to change workspace context.
-`context apply` and `context restore` mutate immediately, so they prompt on a
-terminal and refuse to run in scripts without `--yes`.
+`context propose` is the default way to change workspace context. Commands
+that change the context immediately (`context apply`, `context restore`, and
+`perf proposal --approve`) prompt on a terminal and refuse to run in scripts
+without `--yes`.
 
 ## Output and exit codes
 
@@ -106,6 +129,13 @@ make lint
 make build
 ```
 
-Tool argument names are not yet verified against the live MCP schema. Compare
-them with `quiver tools describe <tool>` and fix them in `cmd/commands.go` and
-`cmd/content_sync.go`.
+Tool argument keys and enums live in `cmd/commands.go` (and the content field
+table in `internal/content/doc.go`). Tests check them against a snapshot of
+the live schemas in `cmd/testdata/tools.json`, and the test server rejects
+calls the real server would reject. When the server's tools change, refresh
+the snapshot and fix whatever fails:
+
+```sh
+quiver tools ls --json | jq '[.[] | {name, inputSchema}] | sort_by(.name)' > cmd/testdata/tools.json
+make test
+```
