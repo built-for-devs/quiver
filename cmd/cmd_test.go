@@ -17,10 +17,11 @@ import (
 // fakeMCP is a minimal Streamable HTTP MCP server. tools maps a tool name to
 // the result it returns; calls records every tools/call.
 type fakeMCP struct {
-	t     *testing.T
-	sse   bool
-	tools map[string]map[string]any
-	calls []map[string]any
+	t        *testing.T
+	sse      bool
+	tools    map[string]map[string]any
+	handlers map[string]func(args map[string]any) map[string]any
+	calls    []map[string]any
 }
 
 func (f *fakeMCP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +58,9 @@ func (f *fakeMCP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(req.Params, &p)
 		f.calls = append(f.calls, map[string]any{"name": p.Name, "arguments": p.Arguments})
 		res, ok := f.tools[p.Name]
+		if h, hok := f.handlers[p.Name]; hok {
+			res, ok = h(p.Arguments), true
+		}
 		if !ok {
 			res = map[string]any{"isError": true, "content": []any{map[string]any{"type": "text", "text": "Campaign not found"}}}
 		}

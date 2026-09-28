@@ -18,6 +18,7 @@ const (
 	CodeNotFound    = 4 // requested resource does not exist
 	CodeValidation  = 5 // server rejected input, or a --check failed
 	CodeUnavailable = 6 // network error, timeout, or server-side 5xx
+	CodeConflict    = 7 // remote changed since the local copy was pulled
 )
 
 // Error carries an exit code alongside a human-readable message.
@@ -54,6 +55,7 @@ func Auth(format string, a ...any) *Error        { return newf(CodeAuth, format,
 func NotFound(format string, a ...any) *Error    { return newf(CodeNotFound, format, a...) }
 func Validation(format string, a ...any) *Error  { return newf(CodeValidation, format, a...) }
 func Unavailable(format string, a ...any) *Error { return newf(CodeUnavailable, format, a...) }
+func Conflict(format string, a ...any) *Error    { return newf(CodeConflict, format, a...) }
 
 // Wrap attaches an exit code and context message to err.
 func Wrap(code int, err error, msg string) *Error {
@@ -88,6 +90,8 @@ func Name(code int) string {
 		return "validation"
 	case CodeUnavailable:
 		return "unavailable"
+	case CodeConflict:
+		return "conflict"
 	default:
 		return "error"
 	}

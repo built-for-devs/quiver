@@ -41,7 +41,8 @@ func NewRoot() *cobra.Command {
 		Long: `quiver is a thin, deterministic client over the Quiver MCP API.
 
 Every read supports --json for piping. Exit codes are stable:
-  0 ok   1 error   2 usage   3 auth   4 not found   5 validation   6 unavailable`,
+  0 ok   1 error   2 usage   3 auth   4 not found   5 validation
+  6 unavailable   7 conflict`,
 		Version:       Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -155,20 +156,39 @@ func newClient(s *settings) (*client.Client, error) {
 	return client.New(s.apiURL.Value, s.token.Value, Version, g.timeout), nil
 }
 
-// callTool is the common path for commands that map 1:1 to an MCP tool:
-// resolve settings, call the tool, render the result.
-func callTool(cmd *cobra.Command, tool string, args map[string]any) error {
+// session is a connected client for commands that make several tool calls.
+type session struct {
+	cmd *cobra.Command
+	c   *client.Client
+}
+
+func newSession(cmd *cobra.Command) (*session, error) {
 	s, err := loadSettings()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c, err := newClient(s)
 	if err != nil {
+		return nil, err
+	}
+	return &session{cmd: cmd, c: c}, nil
+}
+
+// call runs one tool with a per-call timeout.
+func (s *session) call(tool string, args map[string]any) (*client.ToolResult, error) {
+	ctx, cancel := context.WithTimeout(s.cmd.Context(), g.timeout)
+	defer cancel()
+	return s.c.CallTool(ctx, tool, args)
+}
+
+// callTool is the common path for commands that map 1:1 to an MCP tool:
+// call the tool, render the result.
+func callTool(cmd *cobra.Command, tool string, args map[string]any) error {
+	s, err := newSession(cmd)
+	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(cmd.Context(), g.timeout)
-	defer cancel()
-	res, err := c.CallTool(ctx, tool, args)
+	res, err := s.call(tool, args)
 	if err != nil {
 		return err
 	}

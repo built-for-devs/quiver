@@ -52,7 +52,7 @@ func newContentCmd() *cobra.Command {
 			}},
 		{use: "get <slug>", short: "Show a content item", tool: "get_content", argKey: "slug"},
 		{use: "metrics <slug>", short: "Show metric snapshots for a content item", tool: "get_content_metrics", argKey: "slug"},
-	})
+	}, newContentPullCmd(), newContentPushCmd(), newContentCheckCmd())
 }
 
 func newResearchCmd() *cobra.Command {
