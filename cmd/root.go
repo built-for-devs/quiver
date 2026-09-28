@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/built-for-devs/quiver/internal/apperr"
 	"github.com/built-for-devs/quiver/internal/client"
@@ -261,14 +262,11 @@ func setIf(cmd *cobra.Command, m map[string]any, flag, key string, v any) {
 	}
 }
 
-// isTerminal reports whether f is an interactive terminal.
+// isTerminal reports whether f is an interactive terminal. /dev/null and
+// other character devices are not.
 func isTerminal(f any) bool {
 	file, ok := f.(*os.File)
-	if !ok {
-		return false
-	}
-	fi, err := file.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+	return ok && term.IsTerminal(int(file.Fd()))
 }
 
 // parseArgPairs parses repeated key=value flags. Values that are valid JSON
