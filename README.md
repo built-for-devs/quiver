@@ -38,15 +38,16 @@ Precedence is flag, then environment, then config file.
 ```
 quiver dashboard
 quiver context    show [--field] | history | propose <field> | apply <field> | restore <version>
-quiver campaign   ls | get | create | update | status <id> <state>
-quiver artifact   ls | get | save | update | status <id> <state>
-quiver content    ls | calendar | get | metrics | log-metrics | distribute
+quiver campaign   ls | get | create | update | status <id> <state> | delete
+quiver artifact   ls | get | save | update | status <id> <state> | archive | delete
+quiver content    ls | calendar | get | metrics | log-metrics | distribute | archive | delete
                   pull | push | check
-quiver research   ls | get | add | quotes | linear <entry-id>
+quiver research   ls | get | add | update | delete | quotes | linear <entry-id>
+                  quote update | quote delete
 quiver perf       log | ls | queue | proposals | proposal <id> --approve|--reject
 quiver task       ls | add | update | done <id>
-quiver session    ls | get
-quiver competitor ls | get | intel
+quiver session    ls | get | delete
+quiver competitor ls | get | intel | add | update | remove | scan | cadence <off|monthly|weekly>
 quiver tools      ls | describe <tool> | call <tool>
 ```
 
@@ -99,10 +100,19 @@ quiver content push posts/
 
 ## Guardrails
 
-`context propose` is the default way to change workspace context. Commands
-that change the context immediately (`context apply`, `context restore`, and
-`perf proposal --approve`) prompt on a terminal and refuse to run in scripts
-without `--yes`.
+`context propose` is the default way to change workspace context.
+
+These commands prompt on a terminal and refuse to run in scripts without
+`--yes`:
+
+- Changing the context immediately: `context apply`, `context restore`,
+  `perf proposal --approve`
+- Permanent deletes: `campaign delete`, `artifact delete`, `content delete`,
+  `research delete`, `research quote delete`, `session delete`,
+  `competitor remove`
+- Taking content off the public site: `content archive`
+- Spending model tokens: `competitor scan`, and `competitor cadence` with any
+  value other than `off`
 
 ## Output and exit codes
 

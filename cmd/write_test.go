@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/built-for-devs/quiver/internal/apperr"
@@ -135,5 +136,63 @@ func TestContextRestoreByNumber(t *testing.T) {
 	}
 	if _, _, code := run(t, env, "context", "restore", "9", "--yes"); code != apperr.CodeNotFound {
 		t.Errorf("missing version: code=%d", code)
+	}
+}
+
+func TestGuardedCommands(t *testing.T) {
+	cases := []struct {
+		args []string
+		tool string
+	}{
+		{[]string{"campaign", "delete", "c1"}, "delete_campaign"},
+		{[]string{"artifact", "delete", "a1"}, "delete_artifact"},
+		{[]string{"content", "archive", "launch-post"}, "archive_content"},
+		{[]string{"content", "delete", "launch-post"}, "delete_content"},
+		{[]string{"research", "delete", "r1"}, "delete_research_entry"},
+		{[]string{"research", "quote", "delete", "q1"}, "delete_quote"},
+		{[]string{"session", "delete", "s1"}, "delete_session"},
+		{[]string{"competitor", "remove", "k1"}, "remove_competitor"},
+		{[]string{"competitor", "scan"}, "run_competitor_scan"},
+		{[]string{"competitor", "cadence", "weekly"}, "set_competitive_intel"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.tool, func(t *testing.T) {
+			f, env := server(t, false)
+			f.tools[tc.tool] = textResult(`{"ok":true}`)
+			_, stderr, code := run(t, env, tc.args...)
+			if code != apperr.CodeUsage || !strings.Contains(stderr, "--yes") || len(f.calls) != 0 {
+				t.Fatalf("without --yes: code=%d calls=%v stderr=%s", code, f.calls, stderr)
+			}
+			if _, stderr, code := run(t, env, append(tc.args, "--yes")...); code != 0 || f.calls[0]["name"] != tc.tool {
+				t.Fatalf("with --yes: code=%d calls=%v stderr=%s", code, f.calls, stderr)
+			}
+		})
+	}
+
+	// Unguarded: reversible or harmless.
+	for _, args := range [][]string{{"competitor", "cadence", "off"}, {"artifact", "archive", "a1"}} {
+		f, env := server(t, false)
+		f.tools["set_competitive_intel"] = textResult(`{"ok":true}`)
+		f.tools["archive_artifact"] = textResult(`{"ok":true}`)
+		if _, stderr, code := run(t, env, args...); code != 0 {
+			t.Errorf("%v: code=%d stderr=%s", args, code, stderr)
+		}
+	}
+}
+
+func TestCompetitorPages(t *testing.T) {
+	f, env := server(t, false)
+	f.tools["add_competitor"] = textResult(`{"ok":true}`)
+	_, stderr, code := run(t, env, "competitor", "add", "--name", "Acme", "--homepage", "https://acme.dev",
+		"--page", "pricing=https://acme.dev/pricing?plan=a", "--page", "docs=https://acme.dev/docs")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	want := "map[homepage_url:https://acme.dev name:Acme pages:[map[surface:pricing url:https://acme.dev/pricing?plan=a] map[surface:docs url:https://acme.dev/docs]]]"
+	if got := fmt.Sprint(f.calls[0]["arguments"]); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+	if _, _, code := run(t, env, "competitor", "add", "--name", "A", "--homepage", "https://a.dev", "--page", "website=https://a.dev"); code != apperr.CodeUsage {
+		t.Errorf("bad surface: code=%d", code)
 	}
 }

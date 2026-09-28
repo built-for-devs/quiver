@@ -186,6 +186,10 @@ func TestSpecsMatchSchemas(t *testing.T) {
 			}
 		}
 		for _, f := range s.flags {
+			if f.kind == flagPairs {
+				checkPairs(t, name, f, sch.Properties[f.key])
+				continue
+			}
 			check("--"+f.name, f.key, f.enum)
 			check("--"+f.name, f.altKey, nil)
 			if f.required {
@@ -197,6 +201,54 @@ func TestSpecsMatchSchemas(t *testing.T) {
 			if !provided[r] && !(s.tool == "action_proposal" && r == "action") {
 				t.Errorf("%s: required key %q is not a positional or required flag", name, r)
 			}
+		}
+	}
+}
+
+// checkPairs verifies a flagPairs flag against its array-of-objects schema.
+func checkPairs(t *testing.T, name string, f flagSpec, prop *schema) {
+	t.Helper()
+	if prop == nil || prop.Items == nil {
+		t.Errorf("%s: --%s sends unknown or non-list key %q", name, f.name, f.key)
+		return
+	}
+	for _, k := range f.pair {
+		if _, ok := prop.Items.Properties[k]; !ok {
+			t.Errorf("%s: --%s item key %q not in schema", name, f.name, k)
+		}
+	}
+	var want []string
+	for _, e := range prop.Items.Properties[f.pair[0]].Enum {
+		want = append(want, e.(string))
+	}
+	got := slices.Clone(f.enum)
+	sort.Strings(got)
+	sort.Strings(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("%s: --%s %s enum %v, schema has %v", name, f.name, f.pair[0], got, want)
+	}
+}
+
+// handWritten lists tools called by commands outside the spec table.
+var handWritten = []string{
+	"get_context", "propose_context_update", "apply_context_update", "restore_context_version", // cmd/context.go
+	"get_content", "list_content", "save_content", "update_content", // cmd/content_sync.go
+}
+
+// TestEveryToolHasACommand fails when the server adds a tool the CLI does
+// not cover, so new tools get a deliberate decision.
+func TestEveryToolHasACommand(t *testing.T) {
+	NewRoot()
+	covered := map[string]bool{}
+	for _, s := range specs {
+		covered[s.tool] = true
+	}
+	for _, n := range handWritten {
+		covered[n] = true
+	}
+	for name := range loadSchemas(t) {
+		if !covered[name] {
+			t.Errorf("tool %q has no command (add one, or list it in handWritten)", name)
 		}
 	}
 }

@@ -60,6 +60,8 @@ func newCampaignCmd() *cobra.Command {
 			flags: append([]flagSpec{str("name", "name", "campaign name")}, campaignFields...)},
 		{verb: "status", args: []argSpec{id("<id>", "campaign_id"), {name: "<state>", key: "status", enum: campaignStatuses}},
 			short: "Change campaign status", tool: "update_campaign_status"},
+		{verb: "delete", args: []argSpec{id("<id>", "campaign_id")}, short: "Permanently delete a campaign", tool: "delete_campaign",
+			guard: "permanently delete campaign %s"},
 	})
 }
 
@@ -92,6 +94,9 @@ func newArtifactCmd() *cobra.Command {
 			}},
 		{verb: "status", args: []argSpec{id("<id>", "artifact_id"), {name: "<state>", key: "status", enum: artifactStatuses}},
 			short: "Change artifact status", tool: "update_artifact_status"},
+		{verb: "archive", args: []argSpec{id("<id>", "artifact_id")}, short: "Archive an artifact (undo with `artifact status <id> draft`)", tool: "archive_artifact"},
+		{verb: "delete", args: []argSpec{id("<id>", "artifact_id")}, short: "Permanently delete an artifact", tool: "delete_artifact",
+			guard: "permanently delete artifact %s"},
 	})
 }
 
@@ -141,6 +146,11 @@ func newContentCmd() *cobra.Command {
 				str("status", "status", "distribution status"),
 				str("notes", "notes", "notes"),
 			}},
+		{verb: "archive", args: []argSpec{contentRef}, short: "Archive a content piece", tool: "archive_content",
+			long:  "Archive a content piece. If it is published, this takes it down from the public site.",
+			guard: "archive content %s (a published piece is taken down)"},
+		{verb: "delete", args: []argSpec{contentRef}, short: "Permanently delete a content piece", tool: "delete_content",
+			guard: "permanently delete content %s"},
 	}, newContentPullCmd(), newContentPushCmd(), newContentCheckCmd())
 }
 
@@ -179,9 +189,35 @@ func newResearchCmd() *cobra.Command {
 				boolf("featured", "featured_only", "only featured quotes"),
 				limitFlag,
 			}},
+		{verb: "update", args: []argSpec{id("<id>", "id")}, short: "Update a research entry", tool: "update_research_entry",
+			flags: []flagSpec{
+				str("title", "title", "entry title"),
+				oneOf("source", "source_type", "source type", researchSources...),
+				file("raw_notes", "file with the replacement raw notes"),
+				str("contact", "contact_name", "contact name"),
+				str("company", "contact_company", "contact company"),
+				str("segment", "contact_segment", "contact segment"),
+				oneOf("stage", "contact_stage", "contact stage", researchStages...),
+				str("sentiment", "sentiment", "sentiment"),
+				str("date", "research_date", "research date (YYYY-MM-DD)"),
+				boolf("product-signal", "product_signal", "flag as a product signal (--product-signal=false to unflag)"),
+				str("product-note", "product_note", "product signal note"),
+			}},
+		{verb: "delete", args: []argSpec{id("<id>", "id")}, short: "Permanently delete a research entry and its quotes", tool: "delete_research_entry",
+			guard: "permanently delete research entry %s"},
 		{verb: "linear", args: []argSpec{idOr("<id|title>", "entry_id", "entry_title")}, short: "Print a Linear issue payload for piping", tool: "get_linear_payload",
 			long: "Generate a Linear issue payload (title, description, entry URL) from a research entry with a product signal.\nDoes not call the Linear API."},
-	})
+	}, group("quote", "Update or delete a quote (list them with `research quotes`)", nil, []toolSpec{
+		{verb: "update", args: []argSpec{id("<quote-id>", "quote_id")}, short: "Feature or re-theme a quote", tool: "update_quote",
+			example: `  quiver research quote update 5b1e... --featured
+  quiver research quote update 5b1e... --featured=false --theme pricing`,
+			flags: []flagSpec{
+				boolf("featured", "featured", "feature the quote in AI session context (--featured=false to unfeature)"),
+				oneOf("theme", "theme", "theme", researchThemes...),
+			}},
+		{verb: "delete", args: []argSpec{id("<quote-id>", "quote_id")}, short: "Permanently delete a quote", tool: "delete_quote",
+			guard: "permanently delete quote %s"},
+	}))
 }
 
 func newPerfCmd() *cobra.Command {
@@ -322,13 +358,52 @@ func newSessionCmd() *cobra.Command {
 				limitFlag,
 			}},
 		{verb: "get", args: []argSpec{id("<id>", "session_id")}, short: "Show a session", tool: "get_session"},
+		{verb: "delete", args: []argSpec{id("<id>", "session_id")}, short: "Permanently delete a session", tool: "delete_session",
+			guard: "permanently delete session %s"},
 	})
 }
+
+var competitorSurfaces = []string{"homepage", "pricing", "product", "changelog", "blog", "reviews", "careers",
+	"profile", "docs", "github", "social"}
+
+// competitorPages is the --page flag: surface=url pairs to track.
+var competitorPages = pairs("page", "pages", "page to track", [2]string{"surface", "url"}, competitorSurfaces...)
 
 func newCompetitorCmd() *cobra.Command {
 	return group("competitor", "Competitors and competitive intel", []string{"competitors"}, []toolSpec{
 		{verb: "ls", aliases: []string{"list"}, short: "List competitors", tool: "list_competitors"},
 		{verb: "get", args: []argSpec{id("<id>", "competitor_id")}, short: "Show a competitor", tool: "get_competitor"},
 		{verb: "intel", short: "Show competitive intel", tool: "get_competitive_intel"},
+		{verb: "add", short: "Track a competitor", tool: "add_competitor",
+			example: `  quiver competitor add --name Acme --homepage https://acme.dev --page pricing=https://acme.dev/pricing`,
+			flags: []flagSpec{
+				str("name", "name", "competitor name").req(),
+				str("homepage", "homepage_url", "public https homepage URL").req(),
+				competitorPages,
+			}},
+		{verb: "update", args: []argSpec{id("<id>", "competitor_id")}, short: "Update a competitor", tool: "update_competitor",
+			flags: []flagSpec{
+				str("name", "name", "new name"),
+				str("homepage", "homepage_url", "corrected homepage URL"),
+				boolf("active", "is_active", "resume scanning (--active=false pauses it)"),
+				competitorPages,
+			}},
+		{verb: "remove", args: []argSpec{id("<id>", "competitor_id")}, short: "Stop tracking a competitor", tool: "remove_competitor",
+			guard: "remove competitor %s"},
+		{verb: "scan", short: "Scan competitors that are due (spends model tokens)", tool: "run_competitor_scan",
+			flags: []flagSpec{str("competitor", "competitor_id", "scan only this competitor ID")},
+			guard: "run a competitor scan, which spends model tokens"},
+		{verb: "cadence", args: []argSpec{{name: "<off|monthly|weekly>", key: "cadence", enum: []string{"off", "monthly", "weekly"}}},
+			short: "Set how often competitors are scanned automatically", tool: "set_competitive_intel",
+			long:  "Set the automatic scan cadence. Enabling scans commits model tokens on a schedule, so\nanything but off prompts on a terminal and requires --yes in scripts.",
+			flags: []flagSpec{boolf("yes", "", "skip the confirmation prompt (required in scripts)").withShort("y")},
+			prepare: func(cmd *cobra.Command, args map[string]any) error {
+				cadence := args["cadence"].(string)
+				if cadence == "off" {
+					return nil
+				}
+				yes, _ := cmd.Flags().GetBool("yes")
+				return confirm(cmd, yes, "scan competitors "+cadence+", which spends model tokens on a schedule")
+			}},
 	})
 }

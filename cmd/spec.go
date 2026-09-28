@@ -28,6 +28,11 @@ type toolSpec struct {
 	// prepare runs after arguments are mapped and before the call. It can
 	// read CLI-only flags (key ""), add computed arguments, or refuse.
 	prepare func(cmd *cobra.Command, toolArgs map[string]any) error
+
+	// guard marks an irreversible, externally visible, or costly action. It
+	// adds --yes and describes the action in the confirmation prompt; "%s" is
+	// replaced with the first positional argument.
+	guard string
 }
 
 // argSpec is a positional argument.
@@ -49,6 +54,7 @@ const (
 	flagFile             // path (or - for stdin) whose contents are sent
 	flagMap              // repeatable key=value; sent as an object
 	flagNull             // boolean switch that sends key: null (clears a field)
+	flagPairs            // repeatable a=b; sent as [{pair[0]: a, pair[1]: b}, ...]
 )
 
 type flagSpec struct {
@@ -58,7 +64,8 @@ type flagSpec struct {
 	altKey   string // if set, UUIDs go to key and anything else to altKey
 	kind     flagKind
 	usage    string
-	enum     []string
+	enum     []string  // allowed values (for flagPairs: allowed left-hand sides)
+	pair     [2]string // object keys for flagPairs
 	required bool
 }
 
@@ -88,6 +95,12 @@ func mapf(name, key, usage string) flagSpec {
 
 func nullf(name, key, usage string) flagSpec {
 	return flagSpec{name: name, key: key, kind: flagNull, usage: usage}
+}
+
+// pairs is a repeatable a=b flag sent as a list of two-key objects.
+func pairs(name, key, usage string, pair [2]string, enum ...string) flagSpec {
+	return flagSpec{name: name, key: key, kind: flagPairs, pair: pair, enum: enum,
+		usage: usage + " (repeatable " + pair[0] + "=" + pair[1] + ")"}
 }
 
 // file is the conventional -f/--file flag whose contents are sent under key.
@@ -190,6 +203,16 @@ func (s toolSpec) command() *cobra.Command {
 					return err
 				}
 			}
+			if s.guard != "" {
+				action := s.guard
+				if len(pos) > 0 {
+					action = strings.ReplaceAll(action, "%s", pos[0])
+				}
+				yes, _ := cmd.Flags().GetBool("yes")
+				if err := confirm(cmd, yes, action); err != nil {
+					return err
+				}
+			}
 			return callTool(cmd, s.tool, toolArgs)
 		},
 	}
@@ -214,19 +237,23 @@ func (s toolSpec) command() *cobra.Command {
 			vals[f.name] = fl.IntP(f.name, f.short, 0, f.usage)
 		case flagStrings:
 			vals[f.name] = fl.StringSliceP(f.name, f.short, nil, f.usage)
-		case flagMap:
+		case flagMap, flagPairs:
 			vals[f.name] = fl.StringArrayP(f.name, f.short, nil, f.usage)
 		}
 		if f.required {
 			cmd.MarkFlagRequired(f.name)
 		}
-		if len(f.enum) > 0 {
+		if len(f.enum) > 0 && f.kind != flagPairs {
 			enum := f.enum
 			cmd.RegisterFlagCompletionFunc(f.name, func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 				return enum, cobra.ShellCompDirectiveNoFileComp
 			})
 		}
 	}
+	if s.guard != "" {
+		fl.BoolP("yes", "y", false, "skip the confirmation prompt (required in scripts)")
+	}
+
 	// Flags that write the same tool key (e.g. --due and --clear-due) cannot
 	// be combined.
 	byKey := map[string][]string{}
@@ -268,6 +295,19 @@ func (f flagSpec) value(cmd *cobra.Command, p any) (any, error) {
 		return readInput(cmd, *p.(*string))
 	case flagMap:
 		return parseArgPairs(*p.(*[]string))
+	case flagPairs:
+		var out []any
+		for _, kv := range *p.(*[]string) {
+			a, b, ok := strings.Cut(kv, "=")
+			if !ok || a == "" || b == "" {
+				return nil, apperr.Usage("--%s %q: want %s=%s", f.name, kv, f.pair[0], f.pair[1])
+			}
+			if err := checkEnum("--"+f.name+" "+f.pair[0], a, f.enum); err != nil {
+				return nil, err
+			}
+			out = append(out, map[string]any{f.pair[0]: a, f.pair[1]: b})
+		}
+		return out, nil
 	default:
 		return *p.(*string), nil
 	}
